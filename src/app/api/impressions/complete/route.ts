@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
     if (userEmail) await sendViewerEmail(userEmail, 'Thanks for watching on The Consumer', `<p>You earned $0.25 for watching and answering correctly!</p>`);
   } catch {}
 
-  return NextResponse.json({ ok: true, remainingToday: 4 - cur.c, balanceCents: u.balanceCents });
+  const creative = db.creatives.get(creativeId);
+  return NextResponse.json({ ok: true, remainingToday: 4 - cur.c, balanceCents: u.balanceCents, advertiserUrl: creative?.advertiserUrl });
 }
 
 

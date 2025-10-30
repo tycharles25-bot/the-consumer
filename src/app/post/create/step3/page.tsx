@@ -75,11 +75,16 @@ export default function CreateStep3() {
       let advertiserId = 'unknown';
       let title = '';
       let description = '';
+      let advertiserUrl = '';
+      let quiz: any = undefined;
       if (typeof window !== 'undefined') {
         try {
           advertiserId = localStorage.getItem('ad_businessName') || 'unknown';
           title = localStorage.getItem('ad_businessName') || '';
           description = localStorage.getItem('ad_description') || '';
+          advertiserUrl = localStorage.getItem('ad_website') || '';
+          const q = localStorage.getItem('ad_quiz');
+          if (q) quiz = JSON.parse(q);
         } catch (e) {
           console.error('Error reading localStorage:', e);
         }
@@ -93,7 +98,9 @@ export default function CreateStep3() {
           advertiserId,
           videoUrl: key,
           title,
-          description
+          description,
+          advertiserUrl,
+          quiz
         })
       });
       
@@ -111,6 +118,7 @@ export default function CreateStep3() {
             localStorage.setItem('ad_approved', '1');
             localStorage.setItem('ad_videoUrl', key);
             localStorage.setItem('ad_creativeId', creativeId);
+            if (advertiserUrl) localStorage.setItem('ad_website', advertiserUrl);
           } catch (e) {
             console.error('Error setting localStorage:', e);
           }

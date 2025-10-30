@@ -3,9 +3,10 @@ import { getStripe } from '@/lib/stripe';
 import { db } from '@/lib/store';
 
 export async function POST(req: NextRequest) {
-  const { advertiserId, amountCents, payoutPer, videoUrl, creativeId } = await req.json();
+  const { advertiserId, amountCents, payoutPer: _payoutPerIgnored, videoUrl, creativeId } = await req.json();
+  const payoutPer = 25; // fixed $0.25 per viewer
   
-  if (!advertiserId || !amountCents || !payoutPer || !videoUrl) {
+  if (!advertiserId || !amountCents || !videoUrl) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
           advertiserId,
           videoUrl,
           status: 'approved',
-          payoutPer // Store the payout amount per viewer
+          payoutPer // Store the payout amount per viewer (fixed)
         };
         db.creatives.set(creativeId, creative);
       } else {

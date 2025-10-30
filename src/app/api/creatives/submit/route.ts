@@ -32,9 +32,20 @@ async function openAiModerate(input: string) {
   }
 }
 
+async function fetchPlainText(url: string): Promise<string> {
+  const res = await fetch(url, { headers: { 'User-Agent': 'TheConsumerBot/1.0 (+https://theconsumer.net)' } });
+  const html = await res.text();
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 12000);
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { id, advertiserId, videoUrl, title, description } = body || {};
+  const { id, advertiserId, videoUrl, title, description, advertiserUrl, quiz } = body || {};
   if (!id || !advertiserId || !videoUrl) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
   // Auto-replace existing active ad instead of requiring pause
@@ -50,7 +61,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id, status: 'rejected', reasons: ai.reasons }, { status: 200 });
   }
 
-  // If desired, additional heuristics (duration, format) could be added here
+  // Optional: website compliance moderation
+  if (advertiserUrl && /^https?:\/\//i.test(advertiserUrl)) {
+    try {
+      const text = await fetchPlainText(advertiserUrl);
+      const webCheck = await openAiModerate(text);
+      if (webCheck.flagged) {
+        return NextResponse.json({ id, status: 'rejected', reasons: ['website_noncompliant', ...webCheck.reasons] }, { status: 200 });
+      }
+    } catch (e) {
+      console.warn('Website fetch/moderation failed:', e);
+    }
+  }
 
   activeByAdvertiser.set(advertiserId, id);
   return NextResponse.json({ id, status: 'approved', reasons: [] });

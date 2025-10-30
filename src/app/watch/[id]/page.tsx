@@ -2,7 +2,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 
-const CORRECT_ANSWERS = { q1: 'Alpha', q2: 'Orange' }; // Example correct answers
+type QuizQ = { type: 'tf'|'mc'; question: string; options: string[]; correctIndex: number };
 
 export default function WatchDetail() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +19,20 @@ export default function WatchDetail() {
   const [qOpen, setQOpen] = useState(false);
   const [answers, setAnswers] = useState<{q1?: string; q2?: string}>({});
   const [result, setResult] = useState<any>(null);
+  const [quiz, setQuiz] = useState<{ q1: QuizQ; q2: QuizQ } | null>(null);
+  // Load creative quiz/meta
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/api/creatives/${id}`);
+        if (res.ok) {
+          const cr = await res.json();
+          if (cr?.quiz) setQuiz(cr.quiz);
+        }
+      } catch {}
+    }
+    if (id) load();
+  }, [id]);
   const [lastSeekTime, setLastSeekTime] = useState(0);
 
   useEffect(() => {
@@ -64,8 +78,9 @@ export default function WatchDetail() {
   }
 
   async function submitAnswers() {
-    const q1Correct = answers.q1 === CORRECT_ANSWERS.q1;
-    const q2Correct = answers.q2 === CORRECT_ANSWERS.q2;
+    // Evaluate against creative-defined answers
+    const q1Correct = quiz ? quiz.q1.options[quiz.q1.correctIndex] === answers.q1 : answers.q1 === 'Alpha';
+    const q2Correct = quiz ? quiz.q2.options[quiz.q2.correctIndex] === answers.q2 : answers.q2 === 'Orange';
     const bothCorrect = q1Correct && q2Correct;
 
     if (!bothCorrect) {
@@ -104,6 +119,14 @@ export default function WatchDetail() {
       
       const currentCount = parseInt(localStorage.getItem(watchedKey) || '0');
       localStorage.setItem(watchedKey, (currentCount + 1).toString());
+      // Optional redirect to advertiser website
+      if (data.advertiserUrl) {
+        setTimeout(() => {
+          try {
+            window.location.href = data.advertiserUrl as string;
+          } catch {}
+        }, 1500);
+      }
     }
   }
 
@@ -157,9 +180,9 @@ export default function WatchDetail() {
             <p style={{ color:'var(--muted)', marginBottom:16 }}>Answer both correctly to earn $0.25.</p>
             
             <div style={{ marginBottom:20 }}>
-              <p style={{ fontWeight:600, marginBottom:8 }}>1) What brand was shown?</p>
+              <p style={{ fontWeight:600, marginBottom:8 }}>{quiz ? quiz.q1.question : '1) What brand was shown?'}</p>
               <div style={{ display:'grid', gap:8 }}>
-                {['Alpha','Bravo','Charlie','Delta'].map(opt=> (
+                {(quiz ? quiz.q1.options : ['Alpha','Bravo','Charlie','Delta']).map(opt=> (
                   <label key={opt} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', border:'1px solid var(--border)', borderRadius:8, cursor:'pointer' }}>
                     <input type="radio" name="q1" value={opt} onChange={()=>setAnswers(a=>({...a,q1:opt}))} />
                     {opt}
@@ -169,9 +192,9 @@ export default function WatchDetail() {
             </div>
 
             <div style={{ marginBottom:20 }}>
-              <p style={{ fontWeight:600, marginBottom:8 }}>2) What was the product color?</p>
+              <p style={{ fontWeight:600, marginBottom:8 }}>{quiz ? quiz.q2.question : '2) What was the product color?'}</p>
               <div style={{ display:'grid', gap:8 }}>
-                {['Orange','Blue','Green','Black'].map(opt=> (
+                {(quiz ? quiz.q2.options : ['Orange','Blue','Green','Black']).map(opt=> (
                   <label key={opt} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', border:'1px solid var(--border)', borderRadius:8, cursor:'pointer' }}>
                     <input type="radio" name="q2" value={opt} onChange={()=>setAnswers(a=>({...a,q2:opt}))} />
                     {opt}

@@ -4,9 +4,9 @@ import { useRouter } from 'next/navigation';
 
 export default function CreatePayment() {
   const router = useRouter();
-  const [step, setStep] = useState<'amount' | 'payout' | 'payment'>('amount'); // Step progression
+  const [step, setStep] = useState<'amount' | 'payment'>('amount'); // Step progression
   const [totalAmount, setTotalAmount] = useState(0);
-  const [payoutPer, setPayoutPer] = useState(0); // In cents
+  const payoutPer = 25; // fixed 25 cents
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,13 +16,13 @@ export default function CreatePayment() {
   const remainingCents = totalCents - feeCents;
   
   // Calculate how many viewers can be paid
-  const maxViewers = payoutPer > 0 ? Math.floor(remainingCents / payoutPer) : 0;
+  const maxViewers = Math.floor(remainingCents / payoutPer);
 
   const handleAmountSelect = (amount: number) => {
     setTotalAmount(amount);
     setError('');
-    // Auto-advance to payout selection
-    setTimeout(() => setStep('payout'), 200);
+    // Auto-advance directly to payment
+    setTimeout(() => setStep('payment'), 200);
   };
 
   const handleCustomAmount = () => {
@@ -30,27 +30,17 @@ export default function CreatePayment() {
     if (custom >= 10) {
       setTotalAmount(custom);
       setError('');
-      setTimeout(() => setStep('payout'), 200);
+      setTimeout(() => setStep('payment'), 200);
     } else if (custom > 0) {
       setError('Minimum amount is $10');
     }
   };
 
-  const handlePayoutSelect = (amount: number) => {
-    setPayoutPer(amount);
-    setError('');
-    // Show estimated viewers before moving to payment
-    setTimeout(() => setStep('payment'), 200);
-  };
+  // payout selection removed; fixed at $0.25
 
   const handlePayment = async () => {
     if (totalAmount < 10) {
       setError('Minimum amount is $10');
-      return;
-    }
-    
-    if (payoutPer === 0) {
-      setError('Please select viewer payout amount');
       return;
     }
     
@@ -155,50 +145,7 @@ export default function CreatePayment() {
           </>
         )}
 
-        {step === 'payout' && totalAmount > 0 && (
-          <>
-            <h1>How much will viewers earn?</h1>
-            <p style={{ color:'var(--muted)', marginTop:6 }}>Choose the payout amount per viewer.</p>
-            
-            <div style={{ marginTop:24, display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:8 }}>
-              {[5, 10, 15, 20, 25].map(amount => (
-                <button
-                  key={amount}
-                  onClick={() => handlePayoutSelect(amount)}
-                  style={{
-                    padding:'12px 8px',
-                    borderRadius:10,
-                    border:'2px solid var(--border)',
-                    background: payoutPer === amount ? 'var(--primary)' : '#ffffff',
-                    color: payoutPer === amount ? '#000' : 'var(--foreground)',
-                    fontWeight: payoutPer === amount ? 700 : 600,
-                    cursor:'pointer',
-                    fontSize:'14px'
-                  }}
-                >
-                  ${(amount / 100).toFixed(2)}
-                </button>
-              ))}
-            </div>
-            
-            <button 
-              onClick={() => setStep('amount')}
-              style={{ 
-                marginTop:16, 
-                background:'transparent', 
-                color:'var(--muted)', 
-                padding:'10px 14px', 
-                borderRadius:10, 
-                border:'1px solid var(--border)',
-                width:'100%'
-              }}
-            >
-              ← Back to amount
-            </button>
-          </>
-        )}
-
-        {step === 'payment' && totalAmount > 0 && payoutPer > 0 && (
+        {step === 'payment' && totalAmount > 0 && (
           <>
             <h1>Review & Pay</h1>
             <p style={{ color:'var(--muted)', marginTop:6 }}>Review your campaign details and complete payment.</p>
@@ -231,34 +178,19 @@ export default function CreatePayment() {
 
             <button 
               onClick={handlePayment}
-              disabled={processing || totalAmount < 10 || payoutPer === 0}
+              disabled={processing || totalAmount < 10}
               style={{ 
                 marginTop:24, 
-                background:processing || totalAmount < 10 || payoutPer === 0 ? '#cccccc' : 'var(--primary)', 
+                background:processing || totalAmount < 10 ? '#cccccc' : 'var(--primary)', 
                 color:'#000', 
                 padding:'14px 20px', 
                 borderRadius:10, 
                 fontWeight:700, 
                 width:'100%',
-                cursor:processing || totalAmount < 10 || payoutPer === 0 ? 'not-allowed' : 'pointer'
+                cursor:processing || totalAmount < 10 ? 'not-allowed' : 'pointer'
               }}
             >
               {processing ? 'Processing...' : `Pay $${totalAmount.toFixed(2)}`}
-            </button>
-
-            <button 
-              onClick={() => setStep('payout')}
-              style={{ 
-                marginTop:12, 
-                background:'transparent', 
-                color:'var(--muted)', 
-                padding:'10px 14px', 
-                borderRadius:10, 
-                border:'1px solid var(--border)',
-                width:'100%'
-              }}
-            >
-              ← Back
             </button>
           </>
         )}
