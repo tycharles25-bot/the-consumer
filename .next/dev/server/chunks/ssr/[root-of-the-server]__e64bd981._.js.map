@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///Users/tylercharles/TheConsumer/web/src/app/post/page.tsx"],"sourcesContent":["export default function Post() {\n  return (\n    <main style={{ minHeight:'70vh', display:'grid', placeItems:'center', padding:24 }}>\n      <div style={{ textAlign:'center' }}>\n        <h1>Post</h1>\n        <p style={{ color:'var(--muted)' }}>Create a new ad campaign (video/read). Full advertiser tooling is coming next.</p>\n        <a href=\"/post/create\" style={{ marginTop:16, display:'inline-block', background:'var(--primary)', color:'#000', padding:'12px 18px', borderRadius:10, fontWeight:700 }}>Promote your ad</a>\n      </div>\n    </main>\n  );\n}\n\n\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBACE,8OAAC;QAAK,OAAO;YAAE,WAAU;YAAQ,SAAQ;YAAQ,YAAW;YAAU,SAAQ;QAAG;kBAC/E,cAAA,8OAAC;YAAI,OAAO;gBAAE,WAAU;YAAS;;8BAC/B,8OAAC;8BAAG;;;;;;8BACJ,8OAAC;oBAAE,OAAO;wBAAE,OAAM;oBAAe;8BAAG;;;;;;8BACpC,8OAAC;oBAAE,MAAK;oBAAe,OAAO;wBAAE,WAAU;wBAAI,SAAQ;wBAAgB,YAAW;wBAAkB,OAAM;wBAAQ,SAAQ;wBAAa,cAAa;wBAAI,YAAW;oBAAI;8BAAG;;;;;;;;;;;;;;;;;AAIjL","debugId":null}}]
-}
