@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: the-consumer
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STRIPE_SECRET_KEY
+        sync: false  # Set this in Render dashboard
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: NEXT_PUBLIC_APP_NAME
+        value: The Consumer
+      - key: THEME_PRIMARY
+        value: "#ff6a00"
+
