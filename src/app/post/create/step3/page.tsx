@@ -31,6 +31,53 @@ export default function CreateStep3() {
     });
   }
 
+  async function extractVideoFrames(videoFile: File, numFrames: number = 3): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const frames: string[] = [];
+      
+      const url = URL.createObjectURL(videoFile);
+      video.src = url;
+      video.crossOrigin = 'anonymous';
+      
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const duration = video.duration;
+        const interval = duration / (numFrames + 1);
+        
+        let loaded = 0;
+        
+        for (let i = 1; i <= numFrames; i++) {
+          const currentTime = interval * i;
+          
+          video.currentTime = currentTime;
+          video.onseeked = () => {
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+              frames.push(base64);
+              loaded++;
+              
+              if (loaded === numFrames) {
+                URL.revokeObjectURL(url);
+                resolve(frames);
+              }
+            }
+          };
+        }
+      };
+      
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load video'));
+      };
+    });
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -79,6 +126,17 @@ export default function CreateStep3() {
       setStatus('moderating');
       const creativeId = 'cr_' + Date.now();
       
+      // Extract video frames for moderation
+      let videoFrames: string[] = [];
+      try {
+        console.log('Extracting video frames...');
+        videoFrames = await extractVideoFrames(file, 3); // Extract 3 frames
+        console.log(`Extracted ${videoFrames.length} frames`);
+      } catch (e) {
+        console.warn('Failed to extract video frames:', e);
+        // Continue without frames if extraction fails
+      }
+      
       // Get localStorage values safely
       let advertiserId = 'unknown';
       let title = '';
@@ -108,7 +166,8 @@ export default function CreateStep3() {
           title,
           description,
           advertiserUrl,
-          quiz
+          quiz,
+          videoFrames
         })
       });
       
