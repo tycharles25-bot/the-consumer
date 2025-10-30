@@ -179,22 +179,36 @@ export default function CreateStep3() {
               <h3 style={{ marginBottom:8 }}>Question 1</h3>
               <input value={q1} onChange={e=>setQ1(e.target.value)} placeholder="Enter your first question..." style={{ width:'100%', padding:'12px 16px', border:'1px solid var(--border)', borderRadius:8, fontSize:'14px' }} />
               
+            <div style={{ marginTop:12 }}>
+              <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:6, display:'block' }}>Question Type</label>
+              <select value={q1Type} onChange={e=>setQ1Type(e.target.value as any)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', width:'100%' }}>
+                <option value="tf">True / False</option>
+                <option value="mc">Multiple Choice</option>
+              </select>
+            </div>
+
+            {q1Type === 'tf' && (
               <div style={{ marginTop:12 }}>
-                <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:6, display:'block' }}>Question Type</label>
-                <select value={q1Type} onChange={e=>setQ1Type(e.target.value as any)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', width:'100%' }}>
-                  <option value="tf">True / False</option>
-                  <option value="mc">Multiple Choice</option>
+                <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:8, display:'block' }}>Correct Answer</label>
+                <select value={q1Correct} onChange={e=>setQ1Correct(parseInt(e.target.value)||0)} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)' }}>
+                  <option value={0}>True</option>
+                  <option value={1}>False</option>
                 </select>
               </div>
+            )}
 
-              {q1Type === 'mc' && (
-                <div style={{ marginTop:12 }}>
-                  <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:6, display:'block' }}>Answer Options (separate with commas)</label>
-                  <input value={q1Options} onChange={e=>setQ1Options(e.target.value)} placeholder="Option 1, Option 2, Option 3, Option 4" style={{ width:'100%', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:8, fontSize:'14px' }} />
-                  <label style={{ fontSize:'13px', color:'var(--muted)', marginTop:8, display:'block' }}>Which option is correct? (0 for first, 1 for second, etc.)</label>
-                  <input type="number" min={0} max={3} value={q1Correct} onChange={e=>setQ1Correct(parseInt(e.target.value)||0)} style={{ width:'100%', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:8 }} />
-                </div>
-              )}
+            {q1Type === 'mc' && (
+              <div style={{ marginTop:12 }}>
+                <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:8, display:'block' }}>Answer Options (separate with commas)</label>
+                <input value={q1Options} onChange={e=>setQ1Options(e.target.value)} placeholder="Dog, Cat, Bird, Fish" style={{ width:'100%', padding:'12px 16px', border:'1px solid var(--border)', borderRadius:8, fontSize:'14px' }} />
+                <label style={{ fontSize:'13px', color:'var(--muted)', marginTop:12, marginBottom:6, display:'block' }}>Which option is correct?</label>
+                <select value={q1Correct} onChange={e=>setQ1Correct(parseInt(e.target.value)||0)} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)' }}>
+                  {(q1Options || '').split(',').map((opt, i) => (
+                    <option key={i} value={i}>{i+1}. {opt.trim() || `Option ${i+1}`}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             </div>
 
             <div style={{ marginTop:16, padding:20, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12 }}>
@@ -209,12 +223,26 @@ export default function CreateStep3() {
                 </select>
               </div>
 
+              {q2Type === 'tf' && (
+                <div style={{ marginTop:12 }}>
+                  <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:8, display:'block' }}>Correct Answer</label>
+                  <select value={q2Correct} onChange={e=>setQ2Correct(parseInt(e.target.value)||0)} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)' }}>
+                    <option value={0}>True</option>
+                    <option value={1}>False</option>
+                  </select>
+                </div>
+              )}
+
               {q2Type === 'mc' && (
                 <div style={{ marginTop:12 }}>
-                  <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:6, display:'block' }}>Answer Options (separate with commas)</label>
-                  <input value={q2Options} onChange={e=>setQ2Options(e.target.value)} placeholder="Option 1, Option 2, Option 3, Option 4" style={{ width:'100%', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:8, fontSize:'14px' }} />
-                  <label style={{ fontSize:'13px', color:'var(--muted)', marginTop:8, display:'block' }}>Which option is correct? (0 for first, 1 for second, etc.)</label>
-                  <input type="number" min={0} max={3} value={q2Correct} onChange={e=>setQ2Correct(parseInt(e.target.value)||0)} style={{ width:'100%', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:8 }} />
+                  <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:8, display:'block' }}>Answer Options (separate with commas)</label>
+                  <input value={q2Options} onChange={e=>setQ2Options(e.target.value)} placeholder="Dog, Cat, Bird, Fish" style={{ width:'100%', padding:'12px 16px', border:'1px solid var(--border)', borderRadius:8, fontSize:'14px' }} />
+                  <label style={{ fontSize:'13px', color:'var(--muted)', marginTop:12, marginBottom:6, display:'block' }}>Which option is correct?</label>
+                  <select value={q2Correct} onChange={e=>setQ2Correct(parseInt(e.target.value)||0)} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)' }}>
+                    {(q2Options || '').split(',').map((opt, i) => (
+                      <option key={i} value={i}>{i+1}. {opt.trim() || `Option ${i+1}`}</option>
+                    ))}
+                  </select>
                 </div>
               )}
             </div>
