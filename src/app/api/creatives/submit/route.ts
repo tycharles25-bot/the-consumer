@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/env';
+import { db } from '@/lib/store';
 
 const activeByAdvertiser = new Map<string, string>(); // advertiserId -> creativeId
 
@@ -88,8 +89,13 @@ async function moderateVideoFrame(base64Image: string): Promise<{ flagged: boole
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { id, advertiserId, videoUrl, title, description, advertiserUrl, quiz, videoFrames } = body || {};
+  let { id, advertiserId, videoUrl, title, description, advertiserUrl, quiz, videoFrames, thumbnail } = body || {};
   if (!id || !advertiserId || !videoUrl) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  
+  // Normalize advertiser URL
+  if (advertiserUrl && !advertiserUrl.startsWith('http://') && !advertiserUrl.startsWith('https://')) {
+    advertiserUrl = 'https://' + advertiserUrl;
+  }
 
   // Auto-replace existing active ad instead of requiring pause
   const existingAd = activeByAdvertiser.get(advertiserId);
@@ -128,6 +134,22 @@ export async function POST(req: NextRequest) {
   }
 
   activeByAdvertiser.set(advertiserId, id);
+  
+  // Save creative to database
+  const creative = {
+    id,
+    advertiserId,
+    videoUrl,
+    title,
+    description,
+    status: 'approved' as const,
+    advertiserUrl,
+    quiz,
+    thumbnail
+  };
+  db.creatives.set(id, creative);
+  console.log(`✅ Saved creative ${id} to database. Total: ${db.creatives.size}`);
+  
   return NextResponse.json({ id, status: 'approved', reasons: [] });
 }
 

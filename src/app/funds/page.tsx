@@ -20,7 +20,7 @@ export default function Funds() {
     return (
       <main style={{ minHeight:'70vh', display:'grid', placeItems:'center', padding:24 }}>
         <div style={{ textAlign:'center' }}>
-          <h1>Funds</h1>
+          <h1>Save</h1>
           <p style={{ color:'var(--muted)', marginTop:6 }}>Put in your information to earn today.</p>
           <a href="/funds/setup" style={{ marginTop:16, display:'inline-block', background:'var(--primary)', color:'#000', padding:'12px 18px', borderRadius:10, fontWeight:700 }}>Add payout info</a>
         </div>
@@ -34,8 +34,8 @@ export default function Funds() {
   return (
     <main style={{ minHeight:'70vh', display:'grid', placeItems:'center', padding:24 }}>
       <div style={{ textAlign:'center', maxWidth:520, width:'100%' }}>
-        <h1>Funds</h1>
-        <p style={{ color:'var(--muted)' }}>You’re {pct}% of the way to your $5 withdrawal goal.</p>
+        <h1>Save</h1>
+        <p style={{ color:'var(--muted)' }}>You're {pct}% of the way to your $5 withdrawal goal.</p>
         <div style={{ marginTop:12, height:14, background:'#f5f5f5', borderRadius:8, overflow:'hidden', border:'1px solid var(--border)' }}>
           <div style={{ width:`${pct}%`, height:'100%', background:'linear-gradient(90deg, #ff6a00, #ffc000)' }} />
         </div>
@@ -46,5 +46,3 @@ export default function Funds() {
     </main>
   );
 }
-
-

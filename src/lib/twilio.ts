@@ -1,25 +1,80 @@
 import { env } from './env';
 
 export async function requestOtp(phone: string) {
-  // Mock OTP for development - in production, integrate with Twilio Verify API
-  if (!env.twilio.sid || !env.twilio.token) {
-    console.warn('Twilio not configured, returning mock OTP');
-    return { success: true, sid: 'mock_' + Date.now() };
+  // Check if Twilio is configured
+  if (!env.twilio.sid || !env.twilio.token || !env.twilio.verifySid) {
+    console.error('Twilio not configured');
+    return { success: false, error: 'Twilio not configured. Please add credentials to .env.local' };
   }
   
-  // TODO: Implement real Twilio Verify API integration
-  return { success: true, sid: 'mock_' + Date.now() };
+  try {
+    // Send OTP via Twilio Verify API
+    const response = await fetch(
+      `https://verify.twilio.com/v2/Services/${env.twilio.verifySid}/Verifications`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${Buffer.from(`${env.twilio.sid}:${env.twilio.token}`).toString('base64')}`
+        },
+        body: new URLSearchParams({
+          To: phone,
+          Channel: 'sms'
+        })
+      }
+    );
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      console.log(`✅ OTP sent to ${phone}`);
+      return { success: true, sid: data.sid };
+    } else {
+      console.error('Failed to send OTP:', data.message);
+      return { success: false, error: data.message };
+    }
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    return { success: false, error: 'Failed to send OTP' };
+  }
 }
 
 export async function verifyOtp(phone: string, code: string) {
-  // Mock verification - in production, verify with Twilio
-  if (!env.twilio.sid || !env.twilio.token) {
-    console.warn('Twilio not configured, auto-approving OTP');
-    return { success: true };
+  // Check if Twilio is configured
+  if (!env.twilio.sid || !env.twilio.token || !env.twilio.verifySid) {
+    console.error('Twilio not configured');
+    return { success: false, error: 'Twilio not configured. Please add credentials to .env.local' };
   }
   
-  // TODO: Implement real Twilio Verify API verification
-  // For now, accept any 6-digit code as valid in development
-  return { success: code.length === 6 };
+  try {
+    // Verify OTP via Twilio Verify API
+    const response = await fetch(
+      `https://verify.twilio.com/v2/Services/${env.twilio.verifySid}/VerificationCheck`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${Buffer.from(`${env.twilio.sid}:${env.twilio.token}`).toString('base64')}`
+        },
+        body: new URLSearchParams({
+          To: phone,
+          Code: code
+        })
+      }
+    );
+    
+    const data = await response.json();
+    
+    if (response.ok && data.status === 'approved') {
+      console.log(`✅ OTP verified for ${phone}`);
+      return { success: true };
+    } else {
+      console.warn('Invalid OTP:', data.message);
+      return { success: false, error: data.message };
+    }
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    return { success: false, error: 'Failed to verify OTP' };
+  }
 }
 

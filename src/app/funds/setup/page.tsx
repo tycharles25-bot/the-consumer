@@ -9,10 +9,9 @@ export default function FundsSetup() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    // Simulate verification and persist to localStorage for the demo
     localStorage.setItem('payout_verified', '1');
-    setMsg('Verified! Returning to Funds...');
-    setTimeout(()=> location.href='/funds', 800);
+    setMsg('Verified! Returning to Save...');
+    setTimeout(()=> location.href='/save', 800);
   }
 
   return (
@@ -22,7 +21,7 @@ export default function FundsSetup() {
         <p style={{ color:'var(--muted)' }}>Provide details so we can send your earnings.</p>
         <form onSubmit={submit} style={{ display:'grid', gap:12, marginTop:12 }}>
           <input placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} />
-          <input placeholder="Email for gift card delivery" value={email} onChange={e=>setEmail(e.target.value)} />
+          <input placeholder="Email for payout delivery" value={email} onChange={e=>setEmail(e.target.value)} />
           <input placeholder="Address (optional)" value={address} onChange={e=>setAddress(e.target.value)} />
           <button type="submit" style={{ background:'var(--primary)', color:'#000', padding:'12px 18px', borderRadius:10, fontWeight:700 }}>Verify</button>
         </form>

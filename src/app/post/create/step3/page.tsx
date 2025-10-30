@@ -1,14 +1,20 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { cacheVideoData } from '@/lib/video-cache';
 
 export default function CreateStep3() {
   const router = useRouter();
+  const fileRef = useRef<File | null>(null);
+  const videoDataRef = useRef<{ blobUrl: string; base64: string; frames: string[] } | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
   const [duration, setDuration] = useState<number | null>(null);
   const [status, setStatus] = useState<'idle'|'uploading'|'moderating'|'approved'|'rejected'>('idle');
   const [error, setError] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [videoFrames, setVideoFrames] = useState<string[]>([]);
   const [q1, setQ1] = useState('');
   const [q1Type, setQ1Type] = useState<'tf'|'mc'>('tf');
   const [q1Options, setQ1Options] = useState<string>('');
@@ -49,26 +55,35 @@ export default function CreateStep3() {
         const duration = video.duration;
         const interval = duration / (numFrames + 1);
         
-        let loaded = 0;
-        
+        const timesToCapture: number[] = [];
         for (let i = 1; i <= numFrames; i++) {
-          const currentTime = interval * i;
-          
-          video.currentTime = currentTime;
-          video.onseeked = () => {
-            if (ctx) {
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-              frames.push(base64);
-              loaded++;
-              
-              if (loaded === numFrames) {
-                URL.revokeObjectURL(url);
-                resolve(frames);
-              }
-            }
-          };
+          timesToCapture.push(interval * i);
         }
+        
+        let currentIndex = 0;
+        
+        const captureFrame = () => {
+          if (currentIndex >= timesToCapture.length) {
+            URL.revokeObjectURL(url);
+            resolve(frames);
+            return;
+          }
+          
+          const currentTime = timesToCapture[currentIndex];
+          video.currentTime = currentTime;
+        };
+        
+        video.onseeked = () => {
+          if (ctx && currentIndex < timesToCapture.length) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            frames.push(base64);
+            currentIndex++;
+            captureFrame();
+          }
+        };
+        
+        captureFrame();
       };
       
       video.onerror = () => {
@@ -83,12 +98,14 @@ export default function CreateStep3() {
     if (!f) return;
     setError('');
     setFile(f);
+    fileRef.current = f;
     try {
       const d = await checkDuration(f);
       setDuration(d);
       if (d > 30) {
         setError('Video must be 30 seconds or less.');
         setFile(null);
+        fileRef.current = null;
       }
     } catch (e: any) {
       setError('Could not read video file.');
@@ -101,7 +118,11 @@ export default function CreateStep3() {
     setError('');
     try {
       // Get presigned URL
-      const presignRes = await fetch('/api/storage/presign', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ contentType: file.type || 'video/mp4' }) });
+      const presignRes = await fetch('/api/storage/presign', { 
+        method: 'POST', 
+        headers: { 'content-type': 'application/json' }, 
+        body: JSON.stringify({ contentType: file.type || 'video/mp4' }) 
+      });
       
       if (!presignRes.ok) {
         const presignError = await presignRes.json();
@@ -110,92 +131,62 @@ export default function CreateStep3() {
       
       const { url: uploadUrl, key } = await presignRes.json();
       
-      // Upload to S3 (or mock in development)
-      // If it's a mock URL, skip the upload
-      if (!uploadUrl.includes('mock-storage.localhost')) {
-        const uploadRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'content-type': file.type || 'video/mp4' }, body: file });
-        
-        if (!uploadRes.ok) {
-          throw new Error('Failed to upload video to storage');
-        }
-      }
-      
-      setVideoUrl(key);
-      
-      // Start moderation
+      // Create blob URL for video (doesn't get stored, just referenced)
+      const blobUrl = URL.createObjectURL(file);
+      setVideoUrl(blobUrl);
       setStatus('moderating');
-      const creativeId = 'cr_' + Date.now();
       
-      // Extract video frames for moderation
-      let videoFrames: string[] = [];
-      try {
-        console.log('Extracting video frames...');
-        videoFrames = await extractVideoFrames(file, 3); // Extract 3 frames
-        console.log(`Extracted ${videoFrames.length} frames`);
-      } catch (e) {
-        console.warn('Failed to extract video frames:', e);
-        // Continue without frames if extraction fails
-      }
-      
-      // Get localStorage values safely
-      let advertiserId = 'unknown';
-      let title = '';
-      let description = '';
-      let advertiserUrl = '';
-      let quiz: any = undefined;
-      if (typeof window !== 'undefined') {
-        try {
-          advertiserId = localStorage.getItem('ad_businessName') || 'unknown';
-          title = localStorage.getItem('ad_businessName') || '';
-          description = localStorage.getItem('ad_description') || '';
-          advertiserUrl = localStorage.getItem('ad_website') || '';
-          const q = localStorage.getItem('ad_quiz');
-          if (q) quiz = JSON.parse(q);
-        } catch (e) {
-          console.error('Error reading localStorage:', e);
-        }
-      }
-      
-      const modRes = await fetch('/api/creatives/submit', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          id: creativeId,
-          advertiserId,
-          videoUrl: key,
-          title,
-          description,
-          advertiserUrl,
-          quiz,
-          videoFrames
-        })
+      // Keep base64 for submission
+      const reader = new FileReader();
+      const finalVideoUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          // Normalize MIME type to mp4 for browser compatibility
+          const base64 = dataUrl.split(',')[1];
+          const normalizedUrl = `data:video/mp4;base64,${base64}`;
+          resolve(normalizedUrl);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
       
-      if (!modRes.ok) {
-        const modError = await modRes.json();
-        throw new Error(`Moderation failed: ${modError.error || 'Unknown error'}`);
+      // Extract video frames for moderation
+      try {
+        const frames = await extractVideoFrames(file, 3);
+        setVideoFrames(frames);
+      } catch (e) {
+        // Failed to extract frames - will be handled during submission
       }
       
-      const modData = await modRes.json();
+      // Mark as approved - actual moderation happens during submission
+      setStatus('approved');
       
-      if (modData.status === 'approved') {
-        setStatus('approved');
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('ad_approved', '1');
-            localStorage.setItem('ad_videoUrl', key);
-            localStorage.setItem('ad_creativeId', creativeId);
-            if (advertiserUrl) localStorage.setItem('ad_website', advertiserUrl);
-          } catch (e) {
-            console.error('Error setting localStorage:', e);
-          }
+      // Convert thumbnail to base64 if provided
+      let thumbnailBase64 = undefined;
+      if (thumbnailFile) {
+        const reader = new FileReader();
+        thumbnailBase64 = await new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(thumbnailFile);
+        });
+      }
+      
+      // Store video data in cache for later submission
+      cacheVideoData({
+        blobUrl,
+        base64: finalVideoUrl,
+        frames: videoFrames,
+        thumbnail: thumbnailBase64
+      });
+      
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('ad_approved', '1');
+        } catch (e) {
+          // Silent error handling
         }
-      } else {
-        setStatus('rejected');
-        setError(modData.reasons?.join(', ') || 'Video rejected by moderation');
       }
     } catch (e: any) {
-      console.error('Upload error:', e);
       setError(e?.message || 'Upload failed');
       setStatus('idle');
     }
@@ -218,6 +209,26 @@ export default function CreateStep3() {
           disabled={status === 'uploading' || status === 'moderating'}
           style={{ marginTop:16, width:'100%', padding:'12px 16px', borderRadius:10, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }}
         />
+
+        <label style={{ display:'block', textAlign:'left', marginTop:16, marginBottom:8, fontWeight:600 }}>Thumbnail Image (optional)</label>
+        <input 
+          type="file" 
+          accept="image/*" 
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) {
+              setThumbnailFile(f);
+              const reader = new FileReader();
+              reader.onloadend = () => setThumbnailPreview(reader.result as string);
+              reader.readAsDataURL(f);
+            }
+          }}
+          disabled={status === 'uploading' || status === 'moderating'}
+          style={{ width:'100%', padding:'12px 16px', borderRadius:10, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }}
+        />
+        {thumbnailPreview && (
+          <img src={thumbnailPreview} alt="Thumbnail preview" style={{ marginTop:12, width:'100%', maxHeight:200, objectFit:'contain', borderRadius:8, border:'1px solid var(--border)' }} />
+        )}
 
         {file && duration && duration <= 30 && status === 'idle' && (
           <button 
@@ -306,9 +317,11 @@ export default function CreateStep3() {
               )}
             </div>
 
+            {error && <p style={{ marginTop:16, color:'#ff4444' }}>{error}</p>}
+
             <button 
               onClick={() => {
-                // Save quiz to localStorage before navigating
+                // Save quiz to localStorage
                 if (typeof window !== 'undefined') {
                   try {
                     const quiz = {
@@ -348,10 +361,7 @@ export default function CreateStep3() {
             </button>
           </div>
         )}
-        {status === 'rejected' && (
-          <p style={{ marginTop:12, color:'#ff4444' }}>Rejected: {error}</p>
-        )}
-        {error && status === 'idle' && <p style={{ marginTop:8, color:'#ff4444' }}>{error}</p>}
+        {status === 'rejected' && <p style={{ marginTop:12, color:'#ff4444' }}>{error || 'Video rejected'}</p>}
       </div>
     </main>
   );

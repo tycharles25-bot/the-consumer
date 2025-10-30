@@ -20,7 +20,9 @@ export default function WatchDetail() {
   const [answers, setAnswers] = useState<{q1?: string; q2?: string}>({});
   const [result, setResult] = useState<any>(null);
   const [quiz, setQuiz] = useState<{ q1: QuizQ; q2: QuizQ } | null>(null);
-  // Load creative quiz/meta
+  const [videoUrl, setVideoUrl] = useState<string>('');
+  const [duration, setDuration] = useState<number>(0);
+  // Load creative quiz/meta/video URL
   useEffect(() => {
     async function load() {
       try {
@@ -28,12 +30,39 @@ export default function WatchDetail() {
         if (res.ok) {
           const cr = await res.json();
           if (cr?.quiz) setQuiz(cr.quiz);
+          if (cr?.videoUrl) {
+            // Convert base64 data URL to blob URL for video element compatibility
+            if (cr.videoUrl.startsWith('data:video/')) {
+              try {
+                const response = await fetch(cr.videoUrl);
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                setVideoUrl(blobUrl);
+              } catch (e) {
+                setVideoUrl(cr.videoUrl);
+              }
+            } else {
+              setVideoUrl(cr.videoUrl);
+            }
+          }
         }
-      } catch {}
+      } catch (e) {
+        // Silent error handling
+      }
     }
     if (id) load();
   }, [id]);
   const [lastSeekTime, setLastSeekTime] = useState(0);
+  
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const updateDuration = () => {
+      if (video.duration) setDuration(video.duration);
+    };
+    video.addEventListener('loadedmetadata', updateDuration);
+    return () => video.removeEventListener('loadedmetadata', updateDuration);
+  }, [videoUrl]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -105,8 +134,17 @@ export default function WatchDetail() {
     setResult(data);
     setQOpen(false);
     
-    // Increment watched count for today in localStorage
-    if (typeof window !== 'undefined' && !data.error) {
+    // Handle already earned case - still allow redirect
+    if (data.alreadyEarned && data.advertiserUrl) {
+      setTimeout(() => {
+        try {
+          window.location.href = data.advertiserUrl as string;
+        } catch {}
+      }, 1500);
+    }
+    
+    // Increment watched count for today in localStorage (only for successful earnings)
+    if (typeof window !== 'undefined' && !data.error && !data.alreadyEarned) {
       const today = new Date().toISOString().slice(0, 10);
       const watchedKey = `watched_today_${userId}`;
       const lastWatchDate = localStorage.getItem(`last_watch_date_${userId}`);
@@ -119,8 +157,35 @@ export default function WatchDetail() {
       
       const currentCount = parseInt(localStorage.getItem(watchedKey) || '0');
       localStorage.setItem(watchedKey, (currentCount + 1).toString());
-      // Optional redirect to advertiser website
+      
+      // Save this ad to previous ads list
       if (data.advertiserUrl) {
+        try {
+          const watchedAdsStr = localStorage.getItem('watched_ads') || '[]';
+          const watchedAds = JSON.parse(watchedAdsStr);
+          
+          // Get creative info for title
+          const creativeRes = await fetch(`/api/creatives/${id}`);
+          const creative = await creativeRes.json();
+          
+          // Add to list (avoid duplicates)
+          const existingIndex = watchedAds.findIndex((a: any) => a.id === id);
+          if (existingIndex !== -1) {
+            watchedAds.splice(existingIndex, 1);
+          }
+          
+          watchedAds.push({
+            id,
+            title: creative.title || 'Untitled Ad',
+            url: data.advertiserUrl
+          });
+          
+          // Keep only last 50 ads in localStorage
+          localStorage.setItem('watched_ads', JSON.stringify(watchedAds.slice(-50)));
+        } catch (e) {
+          // Silent error handling
+        }
+        
         setTimeout(() => {
           try {
             window.location.href = data.advertiserUrl as string;
@@ -145,13 +210,21 @@ export default function WatchDetail() {
                 onContextMenu={(e) => e.preventDefault()}
                 style={{ width:'100%', borderRadius:8 }}
                 onPlay={handlePlay}
+                key={videoUrl}
               >
-                <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />
+                {videoUrl ? <source src={videoUrl} type="video/mp4" /> : <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />}
                 Your browser does not support the video tag.
               </video>
-              <p style={{ marginTop: 8, color: 'var(--muted)', fontSize: 14 }}>
-                Watch the entire video to answer questions and earn $0.25
-              </p>
+              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ color: 'var(--muted)', fontSize: 14 }}>
+                  Watch the entire video to answer questions and earn $0.25
+                </p>
+                {duration > 0 && (
+                  <p style={{ color: 'var(--muted)', fontSize: 14 }}>
+                    Duration: {Math.floor(duration)}s
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: 24 }}>

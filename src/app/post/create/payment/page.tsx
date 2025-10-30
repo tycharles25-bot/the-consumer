@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getCachedVideoData, clearCachedVideoData } from '@/lib/video-cache';
 
 export default function CreatePayment() {
   const router = useRouter();
@@ -49,19 +50,61 @@ export default function CreatePayment() {
     
     try {
       let advertiserId = 'unknown';
-      let videoUrl = '';
-      let creativeId = '';
+      let title = '';
+      let description = '';
+      let advertiserUrl = '';
+      let quizStr = '';
       
       if (typeof window !== 'undefined') {
         try {
           advertiserId = localStorage.getItem('ad_businessName') || 'unknown';
-          videoUrl = localStorage.getItem('ad_videoUrl') || '';
-          creativeId = localStorage.getItem('ad_creativeId') || `cr_${Date.now()}`;
+          title = localStorage.getItem('ad_title') || '';
+          description = localStorage.getItem('ad_description') || '';
+          advertiserUrl = localStorage.getItem('ad_website') || '';
+          quizStr = localStorage.getItem('ad_quiz') || '{}';
+          console.log('📝 Payment form data:', { advertiserId, title, description, advertiserUrl: advertiserUrl?.substring(0, 50) });
         } catch (e) {
-          console.error('Error reading localStorage:', e);
+          console.error('Error reading storage:', e);
         }
       }
       
+      // Get cached video data
+      const videoData = getCachedVideoData();
+      if (!videoData) {
+        throw new Error('Video data not found. Please go back and upload your video again.');
+      }
+      
+      // First, submit creative to API
+      const creativeId = `cr_${Date.now()}`;
+      let quiz: any = undefined;
+      try {
+        quiz = JSON.parse(quizStr);
+      } catch {}
+      
+      const submitRes = await fetch('/api/creatives/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: creativeId,
+          advertiserId,
+          videoUrl: videoData.base64,
+          title,
+          description,
+          advertiserUrl,
+          quiz,
+          videoFrames: videoData.frames,
+          thumbnail: videoData.thumbnail
+        })
+      });
+      
+      if (!submitRes.ok) {
+        throw new Error('Failed to submit creative');
+      }
+      
+      // Clear cache after submission
+      clearCachedVideoData();
+      
+      // Now proceed with payment
       const res = await fetch('/api/payment/ad', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,7 +112,7 @@ export default function CreatePayment() {
           advertiserId,
           amountCents: totalCents,
           payoutPer,
-          videoUrl,
+          videoUrl: videoData.base64,
           creativeId
         })
       });
@@ -106,8 +149,8 @@ export default function CreatePayment() {
             <h1>How much will you pay?</h1>
             <p style={{ color:'var(--muted)', marginTop:6 }}>Select the total amount for your ad campaign.</p>
             
-            <div style={{ marginTop:24, display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12 }}>
-              {[10, 25, 50, 100].map(amount => (
+            <div style={{ marginTop:24, display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:12 }}>
+              {[20, 50, 100, 200].map(amount => (
                 <button
                   key={amount}
                   onClick={() => handleAmountSelect(amount)}

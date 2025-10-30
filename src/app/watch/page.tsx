@@ -6,38 +6,20 @@ type Ad = { id: string; title: string; description: string; payout: string; dura
 
 const CATEGORIES = ['All', 'Technology', 'Food', 'Fashion', 'Lifestyle', 'Health', 'Travel', 'Entertainment'];
 
-const ADS: Ad[] = Array.from({ length: 20 }).map((_, i) => {
-  const categories = ['Technology', 'Food', 'Fashion', 'Lifestyle', 'Health', 'Travel', 'Entertainment'];
-  const titles = [
-    ['Smart Watch Pro','Wireless Earbuds','Laptop Stand','Phone Case'],
-    ['Organic Coffee','Gourmet Pizza','Fresh Salad','Smoothie Bowl'],
-    ['Summer Dress','Sneakers','Sunglasses','Handbag'],
-    ['Yoga Mat','Water Bottle','Travel Pillow','Desk Lamp'],
-    ['Vitamins','Face Mask','Protein Shake','Workout Gear'],
-    ['Beach Resort','City Tour','Mountain Hike','Cruise Trip'],
-    ['Movie Night','Game Console','Streaming Service','Concert Tickets']
-  ];
-  const catIndex = i % categories.length;
-  const category = categories[catIndex];
-  return {
-    id: `cr_${i+1}`,
-    title: titles[catIndex][i % titles[catIndex].length] + ` ${Math.floor(i / categories.length) + 1}`,
-    description: 'Short, catchy line explaining the value prop and CTA to learn more.',
-    payout: '$0.25',
-    duration: ['0:15','0:30','0:20'][i % 3],
-    thumb: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=600&auto=format&fit=crop',
-    tags: ['DTC','US'],
-    category
-  };
-});
-
 export default function WatchGrid() {
+  const [ads, setAds] = useState<Ad[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [watchedToday, setWatchedToday] = useState(0);
   const [userId, setUserId] = useState('guest');
   const maxViewsPerDay = 4;
 
   useEffect(() => {
+    // Fetch ads from API
+    fetch('/api/creatives/list')
+      .then(res => res.json())
+      .then(data => setAds(data))
+      .catch(err => console.error('Failed to fetch ads:', err));
+    
     // Get userId from localStorage
     if (typeof window !== 'undefined') {
       const uid = localStorage.getItem('sess_uid') || 'guest';
@@ -59,7 +41,7 @@ export default function WatchGrid() {
     }
   }, []);
 
-  const filteredAds = selectedCategory === 'All' ? ADS : ADS.filter(ad => ad.category === selectedCategory);
+  const filteredAds = selectedCategory === 'All' ? ads : ads.filter(ad => ad.category === selectedCategory);
   const progressPercent = (watchedToday / maxViewsPerDay) * 100;
 
   return (
