@@ -9,6 +9,14 @@ export default function CreateStep3() {
   const [status, setStatus] = useState<'idle'|'uploading'|'moderating'|'approved'|'rejected'>('idle');
   const [error, setError] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [q1, setQ1] = useState('');
+  const [q1Type, setQ1Type] = useState<'tf'|'mc'>('tf');
+  const [q1Options, setQ1Options] = useState<string>('');
+  const [q1Correct, setQ1Correct] = useState<number>(0);
+  const [q2, setQ2] = useState('');
+  const [q2Type, setQ2Type] = useState<'tf'|'mc'>('tf');
+  const [q2Options, setQ2Options] = useState<string>('');
+  const [q2Correct, setQ2Correct] = useState<number>(0);
 
   async function checkDuration(videoFile: File) {
     return new Promise<number>((resolve, reject) => {
@@ -165,10 +173,89 @@ export default function CreateStep3() {
         {status === 'moderating' && <p style={{ marginTop:12 }}>AI is checking your video...</p>}
         {status === 'approved' && (
           <div style={{ marginTop:12 }}>
-            <p style={{ color:'var(--primary)', fontWeight:700 }}>✓ Approved! Your video is ready to post.</p>
+            <p style={{ color:'var(--primary)', fontWeight:700, textAlign:'center' }}>✓ Approved! Now create quiz questions.</p>
+            
+            <div style={{ marginTop:24, padding:20, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12 }}>
+              <h3 style={{ marginBottom:8 }}>Question 1</h3>
+              <input value={q1} onChange={e=>setQ1(e.target.value)} placeholder="Enter your first question..." style={{ width:'100%', padding:'12px 16px', border:'1px solid var(--border)', borderRadius:8, fontSize:'14px' }} />
+              
+              <div style={{ marginTop:12 }}>
+                <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:6, display:'block' }}>Question Type</label>
+                <select value={q1Type} onChange={e=>setQ1Type(e.target.value as any)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', width:'100%' }}>
+                  <option value="tf">True / False</option>
+                  <option value="mc">Multiple Choice</option>
+                </select>
+              </div>
+
+              {q1Type === 'mc' && (
+                <div style={{ marginTop:12 }}>
+                  <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:6, display:'block' }}>Answer Options (separate with commas)</label>
+                  <input value={q1Options} onChange={e=>setQ1Options(e.target.value)} placeholder="Option 1, Option 2, Option 3, Option 4" style={{ width:'100%', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:8, fontSize:'14px' }} />
+                  <label style={{ fontSize:'13px', color:'var(--muted)', marginTop:8, display:'block' }}>Which option is correct? (0 for first, 1 for second, etc.)</label>
+                  <input type="number" min={0} max={3} value={q1Correct} onChange={e=>setQ1Correct(parseInt(e.target.value)||0)} style={{ width:'100%', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:8 }} />
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginTop:16, padding:20, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12 }}>
+              <h3 style={{ marginBottom:8 }}>Question 2</h3>
+              <input value={q2} onChange={e=>setQ2(e.target.value)} placeholder="Enter your second question..." style={{ width:'100%', padding:'12px 16px', border:'1px solid var(--border)', borderRadius:8, fontSize:'14px' }} />
+              
+              <div style={{ marginTop:12 }}>
+                <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:6, display:'block' }}>Question Type</label>
+                <select value={q2Type} onChange={e=>setQ2Type(e.target.value as any)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', width:'100%' }}>
+                  <option value="tf">True / False</option>
+                  <option value="mc">Multiple Choice</option>
+                </select>
+              </div>
+
+              {q2Type === 'mc' && (
+                <div style={{ marginTop:12 }}>
+                  <label style={{ fontSize:'13px', color:'var(--muted)', marginBottom:6, display:'block' }}>Answer Options (separate with commas)</label>
+                  <input value={q2Options} onChange={e=>setQ2Options(e.target.value)} placeholder="Option 1, Option 2, Option 3, Option 4" style={{ width:'100%', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:8, fontSize:'14px' }} />
+                  <label style={{ fontSize:'13px', color:'var(--muted)', marginTop:8, display:'block' }}>Which option is correct? (0 for first, 1 for second, etc.)</label>
+                  <input type="number" min={0} max={3} value={q2Correct} onChange={e=>setQ2Correct(parseInt(e.target.value)||0)} style={{ width:'100%', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:8 }} />
+                </div>
+              )}
+            </div>
+
             <button 
-              onClick={() => router.push('/post/create/payment')}
-              style={{ marginTop:8, background:'var(--primary)', color:'#000', padding:'12px 18px', borderRadius:10, fontWeight:700, width:'100%' }}
+              onClick={() => {
+                // Save quiz to localStorage before navigating
+                if (typeof window !== 'undefined') {
+                  try {
+                    const quiz = {
+                      q1: {
+                        type: q1Type,
+                        question: q1,
+                        options: q1Type === 'tf' ? ['True','False'] : (q1Options || '').split(',').map(s=>s.trim()).filter(Boolean),
+                        correctIndex: q1Correct || 0
+                      },
+                      q2: {
+                        type: q2Type,
+                        question: q2,
+                        options: q2Type === 'tf' ? ['True','False'] : (q2Options || '').split(',').map(s=>s.trim()).filter(Boolean),
+                        correctIndex: q2Correct || 0
+                      }
+                    };
+                    localStorage.setItem('ad_quiz', JSON.stringify(quiz));
+                  } catch (e) {
+                    console.error('Error saving quiz:', e);
+                  }
+                }
+                router.push('/post/create/payment');
+              }}
+              disabled={!q1.trim() || !q2.trim()}
+              style={{ 
+                marginTop:24, 
+                background:(!q1.trim() || !q2.trim()) ? '#ccc' : 'var(--primary)', 
+                color:'#000', 
+                padding:'14px 20px', 
+                borderRadius:10, 
+                fontWeight:700, 
+                width:'100%',
+                cursor: (!q1.trim() || !q2.trim()) ? 'not-allowed' : 'pointer'
+              }}
             >
               Continue to payment
             </button>

@@ -1,0 +1,13 @@
+[00:00:02.739] Server  LOG      ✓ Ready in 2.5s
+[00:08:27.510] Server  WARN    OpenAI moderation error: "{\n  \"error\": {\n    \"message\": \"Incorrect API key provided: undefined. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": null,\n    \"code\": \"invalid_api_key\"\n  }\n}"
+[00:08:35.497] Server  ERROR   Payment error: Error: STRIPE_SECRET_KEY must be a secret key (sk_test_...)
+[00:10:56.085] Server  LOG      ✓ Compiled in 21ms
+[00:11:04.375] Server  LOG      ✓ Compiled in 5ms
+[00:11:11.973] Server  LOG      ✓ Compiled in 4ms
+[00:11:26.136] Server  LOG      ✓ Compiled in 4ms
+[00:11:40.195] Server  LOG      ✓ Compiled in 9ms
+[00:11:53.280] Server  LOG      ✓ Compiled in 7ms
+[00:12:02.941] Server  LOG      ✓ Compiled in 11ms
+[00:15:21.601] Server  LOG     Replacing existing ad cr_1761837462760 with new ad cr_1761837877133 for advertiser Nice
+[00:15:21.776] Server  WARN    OpenAI moderation error: "{\n  \"error\": {\n    \"message\": \"Incorrect API key provided: undefined. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": null,\n    \"code\": \"invalid_api_key\"\n  }\n}"
+[00:17:58.324] Server  LOG      ✓ Compiled in 17ms
