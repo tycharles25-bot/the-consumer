@@ -159,6 +159,22 @@ export async function POST(req: NextRequest) {
   };
   db.creatives.set(id, creative);
   console.log(`✅ Saved creative ${id} to database. Total: ${db.creatives.size}`);
+  console.log(`📝 Creative details:`, { 
+    id, 
+    advertiserId, 
+    title, 
+    hasVideo: !!videoUrl, 
+    videoUrlType: videoUrl?.substring(0, 50),
+    status: creative.status 
+  });
+  
+  // Verify it was saved
+  const saved = db.creatives.get(id);
+  if (!saved) {
+    console.error(`❌ CRITICAL: Creative ${id} was not saved to database!`);
+  } else {
+    console.log(`✅ Verified: Creative ${id} exists in database`);
+  }
   
   return NextResponse.json({ id, status: 'approved', reasons: [] });
 }
