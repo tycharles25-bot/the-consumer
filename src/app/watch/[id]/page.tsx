@@ -31,19 +31,38 @@ export default function WatchDetail() {
           const cr = await res.json();
           if (cr?.quiz) setQuiz(cr.quiz);
           if (cr?.videoUrl) {
+            let finalUrl = cr.videoUrl;
+            
+            // Handle R2 key (if it's just a key like "creatives/xxx", convert to public URL)
+            if (cr.videoUrl && !cr.videoUrl.includes('://') && !cr.videoUrl.startsWith('data:') && !cr.videoUrl.startsWith('/')) {
+              // It's an R2 key - construct public URL
+              // Check both window.location for runtime and process.env for build-time
+              const r2PublicBase = typeof window !== 'undefined' 
+                ? (window as any).__NEXT_PUBLIC_R2_PUBLIC_URL || process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-202c19cecee060bbb3ce62a44474e916.r2.dev/theconsumer'
+                : process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-202c19cecee060bbb3ce62a44474e916.r2.dev/theconsumer';
+              
+              // Ensure the base doesn't end with / and the key doesn't start with /
+              const base = r2PublicBase.endsWith('/') ? r2PublicBase.slice(0, -1) : r2PublicBase;
+              const key = cr.videoUrl.startsWith('/') ? cr.videoUrl.slice(1) : cr.videoUrl;
+              finalUrl = `${base}/${key}`;
+              console.log('🔗 Converting R2 key to public URL:', finalUrl);
+            }
             // Convert base64 data URL to blob URL for video element compatibility
-            if (cr.videoUrl.startsWith('data:video/')) {
+            else if (cr.videoUrl.startsWith('data:video/')) {
               try {
                 const response = await fetch(cr.videoUrl);
                 const blob = await response.blob();
                 const blobUrl = URL.createObjectURL(blob);
-                setVideoUrl(blobUrl);
+                finalUrl = blobUrl;
+                console.log('🔄 Converted base64 to blob URL');
               } catch (e) {
-                setVideoUrl(cr.videoUrl);
+                console.error('❌ Failed to convert base64 to blob:', e);
+                finalUrl = cr.videoUrl;
               }
-            } else {
-              setVideoUrl(cr.videoUrl);
             }
+            
+            setVideoUrl(finalUrl);
+            console.log('✅ Video URL set:', finalUrl.substring(0, 100));
           }
         }
       } catch (e) {
@@ -203,18 +222,35 @@ export default function WatchDetail() {
         <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:16 }}>
           {!videoEnded ? (
             <div>
-              <video
-                ref={videoRef}
-                controls
-                controlsList="nodownload nofullscreen"
-                onContextMenu={(e) => e.preventDefault()}
-                style={{ width:'100%', borderRadius:8 }}
-                onPlay={handlePlay}
-                key={videoUrl}
-              >
-                {videoUrl ? <source src={videoUrl} type="video/mp4" /> : <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />}
-                Your browser does not support the video tag.
-              </video>
+              {videoUrl ? (
+                <video
+                  ref={videoRef}
+                  controls
+                  controlsList="nodownload nofullscreen"
+                  onContextMenu={(e) => e.preventDefault()}
+                  style={{ width:'100%', borderRadius:8 }}
+                  onPlay={handlePlay}
+                  key={videoUrl}
+                  onError={(e) => {
+                    const video = videoRef.current;
+                    console.error('❌ Video load error:', e);
+                    console.error('Video URL:', videoUrl);
+                    console.error('Video error code:', video?.error?.code);
+                    console.error('Video error message:', video?.error?.message);
+                  }}
+                  onLoadStart={() => console.log('📹 Video loading started:', videoUrl.substring(0, 80))}
+                  onCanPlay={() => console.log('✅ Video can play')}
+                  onLoadedData={() => console.log('✅ Video data loaded')}
+                >
+                  <source src={videoUrl} type="video/mp4" />
+                  <source src={videoUrl} type="video/webm" />
+                  Your browser does not support the video tag.
+                </video>
+              ) : (
+                <div style={{ width:'100%', aspectRatio:'16/9', background:'#000', display:'grid', placeItems:'center', borderRadius:8, color:'#fff' }}>
+                  <p>Loading video...</p>
+                </div>
+              )}
               <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p style={{ color: 'var(--muted)', fontSize: 14 }}>
                   Watch the entire video to answer questions and earn $0.25

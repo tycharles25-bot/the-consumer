@@ -30,8 +30,20 @@ export async function requestOtp(phone: string) {
       console.log(`✅ OTP sent to ${phone}`);
       return { success: true, sid: data.sid };
     } else {
-      console.error('Failed to send OTP:', data.message);
-      return { success: false, error: data.message };
+      // Handle specific Twilio error codes
+      let errorMessage = data.message || 'Failed to send OTP';
+      
+      // Common Twilio errors
+      if (data.code === 60200 || errorMessage.includes('unverified')) {
+        errorMessage = 'This phone number is not verified in Twilio. Please use a verified number or contact support.';
+      } else if (data.code === 60203 || errorMessage.includes('max')) {
+        errorMessage = 'Maximum number of attempts reached. Please try again later.';
+      } else if (data.code === 60212 || errorMessage.includes('invalid')) {
+        errorMessage = 'Invalid phone number format. Please use a valid US phone number.';
+      }
+      
+      console.error('Failed to send OTP:', errorMessage);
+      return { success: false, error: errorMessage };
     }
   } catch (error) {
     console.error('Error sending OTP:', error);
