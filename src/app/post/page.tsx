@@ -22,63 +22,46 @@ export default function Post() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get all creatives for the logged-in user
-    // advertiserId is stored as 'ad_businessName' in localStorage
-    const advertiserId = localStorage.getItem('ad_businessName') || '';
-    
-    if (advertiserId && advertiserId !== 'unknown') {
-      // Fetch all campaigns and filter by advertiserId
-      fetch('/api/creatives/all')
-        .then(res => res.json())
-        .then(data => {
-          // Filter by advertiserId
-          const allCreatives = data.creatives || [];
-          const userCampaigns = allCreatives.filter((c: any) => c.advertiserId === advertiserId);
-          
-          setCampaigns(userCampaigns.map((c: any) => ({
-            id: c.id,
-            title: c.title || 'Untitled Ad',
-            description: c.description || '',
-            status: c.status || 'pending',
-            analytics: c.analytics || {
-              totalViews: 0,
-              totalQuizAttempts: 0,
-              totalCorrect: 0,
-              averageScore: 0
-            }
-          })));
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error('Failed to load campaigns:', err);
-          setLoading(false);
-        });
-    } else {
-      // If no advertiserId, show ALL ads so user can find their paid ad
-      fetch('/api/creatives/all')
-        .then(res => res.json())
-        .then(data => {
-          const allCreatives = data.creatives || [];
-          setCampaigns(allCreatives.map((c: any) => ({
-            id: c.id,
-            title: c.title || 'Untitled Ad',
-            description: c.description || '',
-            status: c.status || 'pending',
-            advertiserId: c.advertiserId,
-            analytics: c.analytics || {
-              totalViews: 0,
-              totalQuizAttempts: 0,
-              totalCorrect: 0,
-              averageScore: 0
-            }
-          })));
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error('Failed to load campaigns:', err);
-          setLoading(false);
-        });
-    }
+    // Always fetch ALL ads so user can see their paid ad
+    // We'll show all ads regardless of advertiserId to avoid losing paid ads
+    fetch('/api/creatives/all')
+      .then(res => res.json())
+      .then(data => {
+        console.log('📊 All creatives fetched:', data.creatives?.length || 0);
+        const allCreatives = data.creatives || [];
+        
+        // Optional: Filter by advertiserId if available, but show all if empty
+        const advertiserId = localStorage.getItem('ad_businessName') || '';
+        let filteredCreatives = allCreatives;
+        
+        if (advertiserId && advertiserId !== 'unknown') {
+          // Try to filter, but if no matches, show all
+          filteredCreatives = allCreatives.filter((c: any) => c.advertiserId === advertiserId);
+          if (filteredCreatives.length === 0) {
+            console.log('⚠️ No ads found for advertiserId, showing all ads');
+            filteredCreatives = allCreatives;
+          }
+        }
+        
+        setCampaigns(filteredCreatives.map((c: any) => ({
+          id: c.id,
+          title: c.title || 'Untitled Ad',
+          description: c.description || '',
+          status: c.status || 'pending',
+          advertiserId: c.advertiserId,
+          analytics: c.analytics || {
+            totalViews: 0,
+            totalQuizAttempts: 0,
+            totalCorrect: 0,
+            averageScore: 0
+          }
+        })));
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('❌ Failed to load campaigns:', err);
+        setLoading(false);
+      });
   }, []);
 
   return (
@@ -94,10 +77,30 @@ export default function Post() {
         <p style={{ color:'var(--muted)', textAlign:'center' }}>Loading campaigns...</p>
       ) : campaigns.length === 0 ? (
         <div style={{ textAlign:'center', padding:48, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12 }}>
-          <p style={{ color:'var(--muted)', marginBottom:16 }}>No campaigns yet. Create your first ad!</p>
-          <a href="/post/create" style={{ display:'inline-block', background:'var(--primary)', color:'#000', padding:'12px 18px', borderRadius:10, fontWeight:700 }}>
-            Create First Ad
-          </a>
+          <p style={{ color:'var(--muted)', marginBottom:8 }}>No campaigns found in database.</p>
+          <p style={{ color:'var(--muted)', fontSize:12, marginBottom:16 }}>
+            {typeof window !== 'undefined' && localStorage.getItem('ad_businessName') 
+              ? `If you paid for an ad, the server may have restarted and cleared the database.` 
+              : 'Create your first ad!'}
+          </p>
+          <div style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap' }}>
+            <a href="/post/create" style={{ display:'inline-block', background:'var(--primary)', color:'#000', padding:'12px 18px', borderRadius:10, fontWeight:700 }}>
+              Create New Ad
+            </a>
+            <button
+              onClick={() => {
+                fetch('/api/creatives/all')
+                  .then(res => res.json())
+                  .then(data => {
+                    console.log('Database state:', data);
+                    alert(`Database has ${data.creatives?.length || 0} ads. Check browser console for details.`);
+                  });
+              }}
+              style={{ padding:'12px 18px', borderRadius:10, border:'1px solid var(--border)', background:'transparent', color:'var(--foreground)', fontWeight:600, cursor:'pointer' }}
+            >
+              Check Database
+            </button>
+          </div>
         </div>
       ) : (
         <div style={{ display:'grid', gap:16 }}>
