@@ -54,7 +54,7 @@ export default function Post() {
           setLoading(false);
         });
     } else {
-      // If no advertiserId, try to show all for now
+      // If no advertiserId, show ALL ads so user can find their paid ad
       fetch('/api/creatives/all')
         .then(res => res.json())
         .then(data => {
@@ -64,6 +64,7 @@ export default function Post() {
             title: c.title || 'Untitled Ad',
             description: c.description || '',
             status: c.status || 'pending',
+            advertiserId: c.advertiserId,
             analytics: c.analytics || {
               totalViews: 0,
               totalQuizAttempts: 0,
@@ -119,37 +120,46 @@ export default function Post() {
                       {campaign.status.toUpperCase()}
                     </span>
                     {campaign.status !== 'approved' && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await fetch('/api/creatives/approve', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ creativeId: campaign.id })
-                            });
-                            if (res.ok) {
-                              // Refresh campaigns
-                              window.location.reload();
-                            } else {
-                              alert('Failed to approve ad');
+                      <>
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Approve this ad and make it visible on the Watch page?')) return;
+                            try {
+                              const res = await fetch('/api/creatives/approve', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ creativeId: campaign.id })
+                              });
+                              if (res.ok) {
+                                alert('✅ Ad approved! It will now appear in the Watch tab.');
+                                window.location.reload();
+                              } else {
+                                const error = await res.json();
+                                alert(`Failed to approve: ${error.error || 'Unknown error'}`);
+                              }
+                            } catch (e) {
+                              alert('Error approving ad');
                             }
-                          } catch (e) {
-                            alert('Error approving ad');
-                          }
-                        }}
-                        style={{
-                          padding: '4px 12px',
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          background: '#3b82f6',
-                          color: '#fff',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Approve
-                      </button>
+                          }}
+                          style={{
+                            padding: '4px 12px',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            background: '#3b82f6',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Approve Now
+                        </button>
+                        {campaign.status === 'pending' && (
+                          <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>
+                            (Click to approve and show on site)
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

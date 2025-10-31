@@ -2,13 +2,17 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 
 export async function GET() {
-  // Return all creatives for now
+  // Return ALL creatives regardless of status (so user can see their paid ads)
   const creatives = Array.from(db.creatives.values()).map(c => ({
     id: c.id,
     advertiserId: c.advertiserId,
-    title: c.title,
-    description: c.description,
-    status: c.status,
+    title: c.title || 'Untitled Ad',
+    description: c.description || '',
+    status: c.status || 'pending',
+    payoutPer: c.payoutPer || 25,
+    advertiserUrl: c.advertiserUrl,
+    videoUrl: c.videoUrl,
+    thumbnail: c.thumbnail,
     analytics: c.analytics || {
       totalViews: 0,
       totalQuizAttempts: 0,
@@ -16,6 +20,13 @@ export async function GET() {
       averageScore: 0
     }
   }));
+
+  // Sort by most recent first (assuming id contains timestamp)
+  creatives.sort((a, b) => {
+    const aTime = parseInt(a.id.split('_').pop() || '0');
+    const bTime = parseInt(b.id.split('_').pop() || '0');
+    return bTime - aTime;
+  });
 
   return NextResponse.json({ creatives });
 }
