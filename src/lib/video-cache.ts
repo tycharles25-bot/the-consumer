@@ -14,11 +14,12 @@ export function cacheVideoData(data: VideoData) {
       // Store in localStorage for persistence across page reloads
       const toStore = {
         blobUrl: data.blobUrl,
-        base64: data.base64,
+        base64: data.base64, // Can be R2 key or base64
         frames: data.frames,
         thumbnail: data.thumbnail || ''
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+      console.log('📦 Video cached:', data.base64.startsWith('data:') ? 'base64' : 'R2-key');
     } catch (e) {
       console.error('Failed to cache video data:', e);
     }

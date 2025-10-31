@@ -28,12 +28,73 @@ export default function CreateStep3() {
     return new Promise<number>((resolve, reject) => {
       const video = document.createElement('video');
       const url = URL.createObjectURL(videoFile);
-      video.src = url;
+      
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Video loading timed out. The file may be corrupted or in an unsupported format.'));
+      }, 10000); // 10 second timeout
+      
+      // Normalize MIME type - some files have uppercase extensions but lowercase MIME
+      let mimeType = videoFile.type || 'video/mp4';
+      if (!mimeType || mimeType === 'application/octet-stream') {
+        const ext = videoFile.name.toLowerCase().split('.').pop();
+        if (ext === 'mp4') mimeType = 'video/mp4';
+        else if (ext === 'webm') mimeType = 'video/webm';
+        else if (ext === 'mov') mimeType = 'video/quicktime';
+        else mimeType = 'video/mp4'; // Default fallback
+      }
+      
+      video.preload = 'metadata';
+      video.muted = true; // Some browsers require muted for autoplay
+      
+      // Add error handler BEFORE setting src
+      video.onerror = (e) => {
+        clearTimeout(timeout);
+        console.error('❌ Video load error:', e);
+        console.error('❌ Video file name:', videoFile.name);
+        console.error('❌ Video file type:', videoFile.type);
+        console.error('❌ Video file size:', videoFile.size);
+        console.error('❌ Video error code:', video.error?.code);
+        console.error('❌ Video error details:', video.error);
+        
+        // Map error codes to user-friendly messages
+        let errorMsg = 'Could not read video file. ';
+        if (video.error) {
+          switch (video.error.code) {
+            case 1: // MEDIA_ERR_ABORTED
+              errorMsg += 'Loading was aborted.';
+              break;
+            case 2: // MEDIA_ERR_NETWORK
+              errorMsg += 'Network error occurred.';
+              break;
+            case 3: // MEDIA_ERR_DECODE
+              errorMsg += 'Video codec not supported. Try converting to MP4 (H.264).';
+              break;
+            case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+              errorMsg += 'Video format not supported. Try MP4 or WebM format.';
+              break;
+            default:
+              errorMsg += video.error.message || 'Unknown error.';
+          }
+        } else {
+          errorMsg += 'Please try a different format (MP4 with H.264 codec recommended).';
+        }
+        
+        URL.revokeObjectURL(url);
+        reject(new Error(errorMsg));
+      };
+      
       video.onloadedmetadata = () => {
+        clearTimeout(timeout);
+        console.log('✅ Video loaded successfully:', video.duration, 'seconds');
         URL.revokeObjectURL(url);
         resolve(video.duration);
       };
-      video.onerror = () => reject(new Error('Failed to load video'));
+      
+      // Set src AFTER attaching handlers
+      video.src = url;
+      video.load(); // Explicitly trigger load
     });
   }
 
@@ -96,11 +157,13 @@ export default function CreateStep3() {
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    console.log('📁 File selected:', f.name, f.size, 'bytes');
     setError('');
     setFile(f);
     fileRef.current = f;
     try {
       const d = await checkDuration(f);
+      console.log('⏱️ Duration:', d, 'seconds');
       setDuration(d);
       if (d > 30) {
         setError('Video must be 30 seconds or less.');
@@ -108,47 +171,69 @@ export default function CreateStep3() {
         fileRef.current = null;
       }
     } catch (e: any) {
-      setError('Could not read video file.');
+      console.error('❌ Duration check error:', e);
+      setError(e?.message || 'Could not read video file. Please try a different format (MP4, WebM, etc.).');
     }
   }
 
   async function uploadAndModerate() {
-    if (!file || !duration || duration > 30) return;
+    console.log('🚀 Upload button clicked!', { file: !!file, duration, status });
+    if (!file || !duration || duration > 30) {
+      console.error('❌ Upload blocked:', { hasFile: !!file, duration });
+      return;
+    }
     setStatus('uploading');
     setError('');
     try {
-      // Get presigned URL
-      const presignRes = await fetch('/api/storage/presign', { 
-        method: 'POST', 
-        headers: { 'content-type': 'application/json' }, 
-        body: JSON.stringify({ contentType: file.type || 'video/mp4' }) 
+      // Upload through our API (bypasses CORS issues)
+      console.log('📤 Uploading video through API...', file.name, file.size, 'bytes');
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const uploadRes = await fetch('/api/storage/upload', {
+        method: 'POST',
+        body: formData
       });
       
-      if (!presignRes.ok) {
-        const presignError = await presignRes.json();
-        throw new Error(`Failed to get upload URL: ${presignError.error || 'Unknown error'}`);
+      if (!uploadRes.ok) {
+        const uploadError = await uploadRes.json();
+        throw new Error(`Upload failed: ${uploadError.error || 'Unknown error'}`);
       }
       
-      const { url: uploadUrl, key } = await presignRes.json();
+      const { key, url: r2PublicUrl } = await uploadRes.json();
+      console.log('✅ Video uploaded successfully:', key);
       
-      // Create blob URL for video (doesn't get stored, just referenced)
-      const blobUrl = URL.createObjectURL(file);
-      setVideoUrl(blobUrl);
+      // Set video URL for preview
+      setVideoUrl(r2PublicUrl);
       setStatus('moderating');
       
-      // Keep base64 for submission
-      const reader = new FileReader();
-      const finalVideoUrl = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          // Normalize MIME type to mp4 for browser compatibility
-          const base64 = dataUrl.split(',')[1];
-          const normalizedUrl = `data:video/mp4;base64,${base64}`;
-          resolve(normalizedUrl);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      // Use R2 key for submission (or base64 if mock)
+      let finalVideoUrl: string;
+      let blobUrl: string;
+      
+      if (key.startsWith('mock/')) {
+        // Mock storage: convert to base64
+        blobUrl = URL.createObjectURL(file);
+        setVideoUrl(blobUrl);
+        
+        const reader = new FileReader();
+        const base64Url = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const dataUrl = reader.result as string;
+            const base64 = dataUrl.split(',')[1];
+            const normalizedUrl = `data:video/mp4;base64,${base64}`;
+            resolve(normalizedUrl);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        finalVideoUrl = base64Url;
+      } else {
+        // Real R2 storage
+        finalVideoUrl = key;
+        blobUrl = r2PublicUrl;
+      }
       
       // Extract video frames for moderation
       try {
@@ -230,14 +315,35 @@ export default function CreateStep3() {
           <img src={thumbnailPreview} alt="Thumbnail preview" style={{ marginTop:12, width:'100%', maxHeight:200, objectFit:'contain', borderRadius:8, border:'1px solid var(--border)' }} />
         )}
 
-        {file && duration && duration <= 30 && status === 'idle' && (
+        {/* Debug info */}
+        {(file || duration !== null || error) && (
+          <div style={{ marginTop:12, padding:12, background:'#f0f0f0', borderRadius:8, fontSize:'12px', textAlign:'left' }}>
+            <strong>Debug:</strong><br/>
+            File: {file ? file.name : 'None'}<br/>
+            Duration: {duration !== null ? duration.toFixed(1) + 's' : 'Unknown'}<br/>
+            Status: {status}<br/>
+            HasError: {error ? 'Yes' : 'No'}<br/>
+            {error && <strong style={{color:'red'}}>Error: {error}</strong>}
+          </div>
+        )}
+
+        {file && duration && duration <= 30 && status === 'idle' ? (
           <button 
-            onClick={uploadAndModerate}
-            style={{ marginTop:12, background:'var(--primary)', color:'#000', padding:'12px 18px', borderRadius:10, fontWeight:700, width:'100%' }}
+            onClick={async () => {
+              console.log('🔵 Upload button clicked!', { fileName: file.name, size: file.size, duration });
+              try {
+                await uploadAndModerate();
+              } catch (e) {
+                console.error('❌ Upload error:', e);
+              }
+            }}
+            style={{ marginTop:12, background:'var(--primary)', color:'#000', padding:'12px 18px', borderRadius:10, fontWeight:700, width:'100%', cursor:'pointer' }}
           >
             Upload and verify
           </button>
-        )}
+        ) : file && duration && duration > 30 ? (
+          <p style={{ marginTop:12, color:'#ff4444' }}>Video is too long (max 30 seconds)</p>
+        ) : null}
 
         {status === 'uploading' && <p style={{ marginTop:12 }}>Uploading...</p>}
         {status === 'moderating' && <p style={{ marginTop:12 }}>AI is checking your video...</p>}
