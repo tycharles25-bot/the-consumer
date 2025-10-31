@@ -23,7 +23,6 @@ export async function GET(req: NextRequest) {
       status: c.status,
       payoutPer: c.payoutPer || 25,
       advertiserUrl: c.advertiserUrl,
-      createdAt: c.createdAt || null,
       analytics: c.analytics || {
         totalViews: 0,
         totalQuizAttempts: 0,
