@@ -108,31 +108,50 @@ export default function Post() {
                   return;
                 }
                 
-                if (!confirm(`Recover your paid balance for "${advertiserId}" from Stripe?\n\nThis will check your Stripe payment history and restore any lost advertiser balance.`)) {
+                if (!confirm(`Recover your paid balance and ads for "${advertiserId}" from Stripe?\n\nThis will:\n1. Restore your advertiser balance\n2. Recover any lost ads (videos may need re-upload)`)) {
                   return;
                 }
                 
                 try {
-                  const res = await fetch('/api/advertisers/recover-balance', {
+                  // Recover balance first
+                  const balanceRes = await fetch('/api/advertisers/recover-balance', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ advertiserId })
                   });
-                  const data = await res.json();
+                  const balanceData = await balanceRes.json();
                   
-                  if (data.success) {
-                    alert(`✅ Successfully recovered $${data.recovered.toFixed(2)}!\n\nYour balance: $${data.balance.toFixed(2)}\nFound ${data.payments} payment(s).`);
+                  // Recover creatives
+                  const creativeRes = await fetch('/api/creatives/recover-from-stripe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ advertiserId })
+                  });
+                  const creativeData = await creativeRes.json();
+                  
+                  let message = '';
+                  if (balanceData.success) {
+                    message += `✅ Balance: $${balanceData.recovered.toFixed(2)} recovered\n`;
+                  }
+                  if (creativeData.success && creativeData.recovered > 0) {
+                    message += `✅ Ads: ${creativeData.recovered} ad(s) recovered\n\nNote: Videos may need to be re-uploaded.`;
+                  } else if (creativeData.success) {
+                    message += `\n⚠️ No ads found in Stripe payments.`;
+                  }
+                  
+                  if (message) {
+                    alert(message);
                     window.location.reload();
                   } else {
-                    alert(`No payments found for "${advertiserId}".\n\nIf you paid, make sure the business name matches exactly.`);
+                    alert(`No payments found for "${advertiserId}".`);
                   }
                 } catch (e) {
-                  alert('Error recovering balance. Please contact support.');
+                  alert('Error recovering. Please contact support.');
                 }
               }}
               style={{ padding:'12px 18px', borderRadius:10, background:'#3b82f6', color:'#fff', border:'none', fontWeight:600, cursor:'pointer' }}
             >
-              Recover Paid Balance
+              Recover Balance & Ads
             </button>
           </div>
         </div>
