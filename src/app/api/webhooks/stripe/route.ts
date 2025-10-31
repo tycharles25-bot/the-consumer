@@ -40,11 +40,15 @@ export async function POST(req: NextRequest) {
         advertiser.balanceCents += remainingCents;
         db.advertisers.set(metadata.advertiserId, advertiser);
 
-        // Update creative with payment info
+        // Update creative with payment info and ensure it's approved
         const creative = db.creatives.get(metadata.creativeId);
         if (creative) {
           creative.payoutPer = parseInt(metadata.payoutPer || '0');
+          creative.status = 'approved'; // Ensure ad is approved after payment
           db.creatives.set(metadata.creativeId, creative);
+          console.log(`✅ Approved creative ${metadata.creativeId} after payment`);
+        } else {
+          console.warn(`⚠️ Creative ${metadata.creativeId} not found in database`);
         }
       }
     }

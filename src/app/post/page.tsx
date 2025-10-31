@@ -23,21 +23,23 @@ export default function Post() {
 
   useEffect(() => {
     // Get all creatives for the logged-in user
-    // We'll use the user's phone number (sess_uid) as the advertiser ID
-    const userId = localStorage.getItem('sess_uid') || '';
+    // advertiserId is stored as 'ad_businessName' in localStorage
+    const advertiserId = localStorage.getItem('ad_businessName') || '';
     
-    if (userId) {
-      // Fetch all campaigns and filter on the frontend
+    if (advertiserId && advertiserId !== 'unknown') {
+      // Fetch all campaigns and filter by advertiserId
       fetch('/api/creatives/all')
         .then(res => res.json())
         .then(data => {
-          // Filter by advertiserId if possible, otherwise show all
-          const userCampaigns = data.creatives ? data.creatives : [];
+          // Filter by advertiserId
+          const allCreatives = data.creatives || [];
+          const userCampaigns = allCreatives.filter((c: any) => c.advertiserId === advertiserId);
+          
           setCampaigns(userCampaigns.map((c: any) => ({
             id: c.id,
             title: c.title || 'Untitled Ad',
             description: c.description || '',
-            status: c.status,
+            status: c.status || 'pending',
             analytics: c.analytics || {
               totalViews: 0,
               totalQuizAttempts: 0,
@@ -52,7 +54,29 @@ export default function Post() {
           setLoading(false);
         });
     } else {
-      setLoading(false);
+      // If no advertiserId, try to show all for now
+      fetch('/api/creatives/all')
+        .then(res => res.json())
+        .then(data => {
+          const allCreatives = data.creatives || [];
+          setCampaigns(allCreatives.map((c: any) => ({
+            id: c.id,
+            title: c.title || 'Untitled Ad',
+            description: c.description || '',
+            status: c.status || 'pending',
+            analytics: c.analytics || {
+              totalViews: 0,
+              totalQuizAttempts: 0,
+              totalCorrect: 0,
+              averageScore: 0
+            }
+          })));
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error('Failed to load campaigns:', err);
+          setLoading(false);
+        });
     }
   }, []);
 
@@ -82,17 +106,52 @@ export default function Post() {
                 <div>
                   <h3 style={{ marginBottom:4 }}>{campaign.title}</h3>
                   <p style={{ color:'var(--muted)', fontSize:14, marginBottom:8 }}>{campaign.description}</p>
-                  <span style={{ 
-                    display:'inline-block', 
-                    padding:'4px 8px', 
-                    borderRadius:6, 
-                    fontSize:12, 
-                    fontWeight:600,
-                    background: campaign.status === 'approved' ? '#22c55e20' : campaign.status === 'pending' ? '#f59e0b20' : '#ef444420',
-                    color: campaign.status === 'approved' ? '#22c55e' : campaign.status === 'pending' ? '#f59e0b' : '#ef4444'
-                  }}>
-                    {campaign.status.toUpperCase()}
-                  </span>
+                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                    <span style={{ 
+                      display:'inline-block', 
+                      padding:'4px 8px', 
+                      borderRadius:6, 
+                      fontSize:12, 
+                      fontWeight:600,
+                      background: campaign.status === 'approved' ? '#22c55e20' : campaign.status === 'pending' ? '#f59e0b20' : '#ef444420',
+                      color: campaign.status === 'approved' ? '#22c55e' : campaign.status === 'pending' ? '#f59e0b' : '#ef4444'
+                    }}>
+                      {campaign.status.toUpperCase()}
+                    </span>
+                    {campaign.status !== 'approved' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/creatives/approve', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ creativeId: campaign.id })
+                            });
+                            if (res.ok) {
+                              // Refresh campaigns
+                              window.location.reload();
+                            } else {
+                              alert('Failed to approve ad');
+                            }
+                          } catch (e) {
+                            alert('Error approving ad');
+                          }
+                        }}
+                        style={{
+                          padding: '4px 12px',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: '#3b82f6',
+                          color: '#fff',
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Approve
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
