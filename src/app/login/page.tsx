@@ -7,27 +7,10 @@ export default function Login() {
   const router = useRouter();
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [stage, setStage] = useState<'login-signup'|'request'|'verify'>('login-signup');
+  const [stage, setStage] = useState<'request'|'verify'>('request');
   const [message, setMessage] = useState('');
 
   async function request() {
-    // Validate all required fields for sign up
-    if (!firstName.trim()) {
-      setMessage('First name is required');
-      return;
-    }
-    if (!lastName.trim()) {
-      setMessage('Last name is required');
-      return;
-    }
-    if (!email.trim()) {
-      setMessage('Email is required');
-      return;
-    }
-    
     // Validate phone number format
     const validation = validatePhoneNumber(phone);
     
@@ -72,11 +55,7 @@ export default function Login() {
       const data = await response.json();
       
       if (response.ok && data.ok) {
-        localStorage.setItem('sess_uid', phone); // Use phone as user ID
-        localStorage.setItem('profile_firstName', firstName);
-        localStorage.setItem('profile_lastName', lastName);
-        localStorage.setItem('profile_email', email);
-        localStorage.setItem('profile_phone', phone);
+        localStorage.setItem('sess_uid', phone);
         setMessage('Logged in');
         setTimeout(() => router.push('/watch'), 1000);
       } else {
@@ -94,23 +73,10 @@ export default function Login() {
         <div style={{ width:360, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:20, boxShadow:'0 6px 30px rgba(0,0,0,0.35)' }}>
           <h1 style={{ textAlign:'center', color:'var(--primary)', marginBottom:12 }}>The Consumer</h1>
           
-          {stage === 'login-signup' && (
-            <>
-              <p style={{ textAlign:'center', color:'var(--muted)', marginBottom:24 }}>Get started by logging in or creating an account</p>
-              <div style={{ display:'grid', gap: 12 }}>
-                <button onClick={() => setStage('request')} style={{ background:'var(--primary)', color:'#fff', padding:'12px 16px', borderRadius:8, fontWeight:700 }}>Sign Up</button>
-                <button onClick={() => setStage('request')} style={{ background:'#f5f5f5', color:'var(--foreground)', padding:'12px 16px', borderRadius:8, border:'1px solid var(--border)', fontWeight:700 }}>Log In</button>
-              </div>
-            </>
-          )}
-          
           {stage === 'request' && (
             <>
               <p style={{ textAlign:'center', color:'var(--muted)', marginBottom:16 }}>United States only</p>
               <div style={{ display:'grid', gap: 8 }}>
-                <input placeholder="First Name *" value={firstName} onChange={e=>setFirstName(e.target.value)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }} />
-                <input placeholder="Last Name *" value={lastName} onChange={e=>setLastName(e.target.value)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }} />
-                <input placeholder="Email *" type="email" value={email} onChange={e=>setEmail(e.target.value)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }} />
                 <input placeholder="(555) 123-4567" value={phone} onChange={e=>setPhone(e.target.value)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }} />
                 <button onClick={request} style={{ background:'var(--primary)', color:'#fff', padding:'10px 12px', borderRadius:8, fontWeight:700 }}>Send code</button>
               </div>
