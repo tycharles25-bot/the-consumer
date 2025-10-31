@@ -48,7 +48,9 @@ export async function POST(req: NextRequest) {
     db.creatives.set(creativeId, creative);
     
     console.log(`✅ Test creative ${creativeId} created`);
+    console.log(`📊 Database instance ID: ${db._instanceId}`);
     console.log(`📊 Database now has ${db.creatives.size} creatives`);
+    console.log(`📋 All creative IDs:`, Array.from(db.creatives.keys()));
     
     // Verify it was saved
     const saved = db.creatives.get(creativeId);

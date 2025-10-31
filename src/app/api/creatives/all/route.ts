@@ -3,10 +3,13 @@ import { db } from '@/lib/store';
 
 export async function GET() {
   // Return ALL creatives regardless of status (so user can see their paid ads)
-  console.log(`📊 GET /api/creatives/all - Database has ${db.creatives.size} creatives`);
+  console.log(`📊 GET /api/creatives/all - Database instance ID: ${db._instanceId}`);
+  console.log(`📊 Database has ${db.creatives.size} creatives`);
   if (db.creatives.size > 0) {
     const ids = Array.from(db.creatives.keys());
     console.log(`📋 Creative IDs:`, ids);
+  } else {
+    console.warn(`⚠️ Database is empty! This might indicate a module reload or server restart.`);
   }
   
   const creatives = Array.from(db.creatives.values()).map(c => ({

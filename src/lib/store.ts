@@ -45,7 +45,11 @@ export type Creative = {
   };
 };
 
+// Create a unique instance ID to verify we're using the same db object
+const DB_INSTANCE_ID = `db_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
 export const db = {
+  _instanceId: DB_INSTANCE_ID, // Debug: verify same instance
   users: new Map<string, User>(),
   advertisers: new Map<string, Advertiser>(),
   creatives: new Map<string, Creative>(),
