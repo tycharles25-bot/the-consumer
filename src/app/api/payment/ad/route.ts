@@ -30,21 +30,26 @@ export async function POST(req: NextRequest) {
       db.advertisers.set(advertiserId, advertiser);
     }
 
-    // Create or update creative
+    // Ensure creative exists (should already exist from /api/creatives/submit)
     if (creativeId) {
       let creative = db.creatives.get(creativeId);
       if (!creative) {
+        // Creative doesn't exist - create it as fallback (shouldn't happen)
+        console.warn(`⚠️ Creative ${creativeId} not found, creating fallback entry`);
         creative = {
           id: creativeId,
           advertiserId,
           videoUrl,
           status: 'approved',
-          payoutPer // Store the payout amount per viewer (fixed)
+          payoutPer
         };
         db.creatives.set(creativeId, creative);
       } else {
+        // Creative exists - ensure it's approved and has payout info
+        creative.status = 'approved';
         creative.payoutPer = payoutPer;
         db.creatives.set(creativeId, creative);
+        console.log(`✅ Updated creative ${creativeId} with payment info`);
       }
     }
 

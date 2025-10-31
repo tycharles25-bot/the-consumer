@@ -117,6 +117,14 @@ export default function CreatePayment() {
         throw e;
       }
       
+      // Verify creative was saved before proceeding
+      const verifyRes = await fetch(`/api/creatives/${creativeId}`);
+      if (!verifyRes.ok) {
+        console.error('❌ Creative not found after submission!');
+        throw new Error('Creative was not saved. Please try again.');
+      }
+      console.log('✅ Verified creative exists before payment');
+      
       // Clear cache after submission
       clearCachedVideoData();
       
