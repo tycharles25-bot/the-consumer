@@ -100,6 +100,40 @@ export default function Post() {
             >
               Check Database
             </button>
+            <button
+              onClick={async () => {
+                const advertiserId = localStorage.getItem('ad_businessName') || '';
+                if (!advertiserId || advertiserId === 'unknown') {
+                  alert('Please enter your business name first, or it will be recovered from your Stripe payments.');
+                  return;
+                }
+                
+                if (!confirm(`Recover your paid balance for "${advertiserId}" from Stripe?\n\nThis will check your Stripe payment history and restore any lost advertiser balance.`)) {
+                  return;
+                }
+                
+                try {
+                  const res = await fetch('/api/advertisers/recover-balance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ advertiserId })
+                  });
+                  const data = await res.json();
+                  
+                  if (data.success) {
+                    alert(`✅ Successfully recovered $${data.recovered.toFixed(2)}!\n\nYour balance: $${data.balance.toFixed(2)}\nFound ${data.payments} payment(s).`);
+                    window.location.reload();
+                  } else {
+                    alert(`No payments found for "${advertiserId}".\n\nIf you paid, make sure the business name matches exactly.`);
+                  }
+                } catch (e) {
+                  alert('Error recovering balance. Please contact support.');
+                }
+              }}
+              style={{ padding:'12px 18px', borderRadius:10, background:'#3b82f6', color:'#fff', border:'none', fontWeight:600, cursor:'pointer' }}
+            >
+              Recover Paid Balance
+            </button>
           </div>
         </div>
       ) : (
