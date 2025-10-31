@@ -74,31 +74,47 @@ export default function CreatePayment() {
         throw new Error('Video data not found. Please go back and upload your video again.');
       }
       
-      // First, submit creative to API
+      // First, submit creative to API (with timeout)
       const creativeId = `cr_${Date.now()}`;
       let quiz: any = undefined;
       try {
         quiz = JSON.parse(quizStr);
       } catch {}
       
-      const submitRes = await fetch('/api/creatives/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: creativeId,
-          advertiserId,
-          videoUrl: videoData.base64,
-          title,
-          description,
-          advertiserUrl,
-          quiz,
-          videoFrames: videoData.frames,
-          thumbnail: videoData.thumbnail
-        })
-      });
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
       
-      if (!submitRes.ok) {
-        throw new Error('Failed to submit creative');
+      try {
+        const submitRes = await fetch('/api/creatives/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: creativeId,
+            advertiserId,
+            videoUrl: videoData.base64,
+            title,
+            description,
+            advertiserUrl,
+            quiz,
+            videoFrames: videoData.frames,
+            thumbnail: videoData.thumbnail
+          }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!submitRes.ok) {
+          const errorData = await submitRes.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to submit creative');
+        }
+      } catch (e: any) {
+        clearTimeout(timeoutId);
+        if (e.name === 'AbortError') {
+          throw new Error('Upload timed out. Please try again or contact support.');
+        }
+        throw e;
       }
       
       // Clear cache after submission

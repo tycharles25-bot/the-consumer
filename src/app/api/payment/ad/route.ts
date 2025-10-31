@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { db } from '@/lib/store';
 
+export const maxDuration = 30; // 30 seconds for Stripe API
+
 export async function POST(req: NextRequest) {
   const { advertiserId, amountCents, payoutPer: _payoutPerIgnored, videoUrl, creativeId } = await req.json();
   const payoutPer = 25; // fixed $0.25 per viewer

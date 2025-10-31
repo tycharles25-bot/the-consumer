@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/env';
 import { db } from '@/lib/store';
 
+export const maxDuration = 60; // 60 seconds for moderation checks
+
 const activeByAdvertiser = new Map<string, string>(); // advertiserId -> creativeId
 
 async function openAiModerate(input: string) {
@@ -110,13 +112,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id, status: 'rejected', reasons: ai.reasons }, { status: 200 });
   }
 
-  // Video frame moderation (if frames provided)
+  // Video frame moderation (if frames provided) - run in parallel for speed
   if (videoFrames && Array.isArray(videoFrames) && videoFrames.length > 0) {
-    for (const frame of videoFrames) {
-      const frameCheck = await moderateVideoFrame(frame);
-      if (frameCheck.flagged) {
-        return NextResponse.json({ id, status: 'rejected', reasons: ['video_noncompliant', ...frameCheck.reasons] }, { status: 200 });
+    try {
+      const frameChecks = await Promise.all(
+        videoFrames.map(frame => moderateVideoFrame(frame))
+      );
+      
+      for (const frameCheck of frameChecks) {
+        if (frameCheck.flagged) {
+          return NextResponse.json({ id, status: 'rejected', reasons: ['video_noncompliant', ...frameCheck.reasons] }, { status: 200 });
+        }
       }
+    } catch (e) {
+      console.warn('Video frame moderation error:', e);
+      // Continue if moderation fails
     }
   }
 
