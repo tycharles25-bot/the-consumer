@@ -6,7 +6,8 @@ export function getS3() {
   if (!env.aws.bucket) {
     console.warn('AWS_S3_BUCKET not set, using dummy credentials');
   }
-  return new S3Client({
+  
+  const config: any = {
     region: env.aws.region || 'us-east-1',
     credentials: env.aws.accessKeyId && env.aws.secretAccessKey ? {
       accessKeyId: env.aws.accessKeyId,
@@ -15,7 +16,15 @@ export function getS3() {
       accessKeyId: 'dummy',
       secretAccessKey: 'dummy',
     },
-  });
+  };
+  
+  // Add Cloudflare R2 endpoint if configured
+  if (env.aws.endpoint) {
+    config.endpoint = env.aws.endpoint;
+    config.forcePathStyle = true;
+  }
+  
+  return new S3Client(config);
 }
 
 export async function createPresignedUploadKey(key: string, contentType: string) {

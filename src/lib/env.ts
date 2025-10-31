@@ -14,7 +14,8 @@ export const env = {
     region: process.env.AWS_REGION || 'us-east-1',
     bucket: process.env.AWS_S3_BUCKET || '',
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT || ''
   },
   tremendous: {
     apiKey: process.env.TREMENDOUS_API_KEY || '',

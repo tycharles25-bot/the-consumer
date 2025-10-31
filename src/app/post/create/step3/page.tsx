@@ -131,24 +131,49 @@ export default function CreateStep3() {
       
       const { url: uploadUrl, key } = await presignRes.json();
       
-      // Create blob URL for video (doesn't get stored, just referenced)
-      const blobUrl = URL.createObjectURL(file);
-      setVideoUrl(blobUrl);
-      setStatus('moderating');
+      let finalVideoUrl: string;
+      let blobUrl: string;
       
-      // Keep base64 for submission
-      const reader = new FileReader();
-      const finalVideoUrl = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          // Normalize MIME type to mp4 for browser compatibility
-          const base64 = dataUrl.split(',')[1];
-          const normalizedUrl = `data:video/mp4;base64,${base64}`;
-          resolve(normalizedUrl);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      // Upload to S3 if it's not a mock URL
+      if (!uploadUrl.includes('mock-storage.localhost')) {
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'video/mp4' },
+          body: file
+        });
+        
+        if (!uploadRes.ok) {
+          throw new Error('Failed to upload video to storage');
+        }
+        
+        // Create blob URL for preview using S3 URL
+        const s3PublicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL || ''}/${key}`;
+        setVideoUrl(s3PublicUrl);
+        setStatus('moderating');
+        
+        // Use S3 key for submission
+        finalVideoUrl = key;
+        blobUrl = s3PublicUrl;
+      } else {
+        // Mock: Create blob URL for preview
+        blobUrl = URL.createObjectURL(file);
+        setVideoUrl(blobUrl);
+        setStatus('moderating');
+        
+        // Keep base64 for submission when using mock
+        const reader = new FileReader();
+        const base64Url = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const dataUrl = reader.result as string;
+            const base64 = dataUrl.split(',')[1];
+            const normalizedUrl = `data:video/mp4;base64,${base64}`;
+            resolve(normalizedUrl);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        finalVideoUrl = base64Url;
+      }
       
       // Extract video frames for moderation
       try {

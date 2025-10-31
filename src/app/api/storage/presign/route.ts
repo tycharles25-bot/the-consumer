@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
+import { createPresignedUploadKey } from '@/lib/s3';
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,10 +9,20 @@ export async function POST(req: NextRequest) {
     
     const key = `creatives/${randomUUID()}`;
     
-    // For development without AWS credentials, return a mock URL
-    // This allows the app to work without S3 configured
-    const mockUrl = `https://mock-storage.localhost/${key}`;
+    // Try to create real presigned URL with S3/R2
+    try {
+      const { url } = await createPresignedUploadKey(key, contentType);
+      
+      // Check if it's a real URL (not mock)
+      if (!url.includes('mock-storage.localhost')) {
+        return NextResponse.json({ url, key });
+      }
+    } catch (e) {
+      console.error('Real S3 presign failed:', e);
+    }
     
+    // Fallback: return mock URL for development
+    const mockUrl = `https://mock-storage.localhost/${key}`;
     return NextResponse.json({ url: mockUrl, key });
   } catch (e: any) {
     console.error('Presign error:', e);
