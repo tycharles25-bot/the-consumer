@@ -1,145 +1,108 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { validatePhoneNumber } from '@/lib/phone-validator';
+import { signIn } from 'next-auth/react';
+import { Suspense } from 'react';
 
-export default function Login() {
-  const router = useRouter();
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [mode, setMode] = useState<'login'|'signup'>('login');
-  const [stage, setStage] = useState<'request'|'verify'>('request');
-  const [message, setMessage] = useState('');
-
-  async function request() {
-    // For signup, validate all fields
-    if (mode === 'signup') {
-      if (!firstName.trim()) {
-        setMessage('First name is required');
-        return;
-      }
-      if (!lastName.trim()) {
-        setMessage('Last name is required');
-        return;
-      }
-      if (!email.trim()) {
-        setMessage('Email is required');
-        return;
-      }
-    }
-    
-    // Validate phone number format
-    const validation = validatePhoneNumber(phone);
-    
-    if (!validation.valid) {
-      setMessage(validation.error || 'Invalid phone number');
-      return;
-    }
-    
-    setMessage('Sending code...');
-    
-    try {
-      const response = await fetch('/api/auth/request-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: validation.formatted })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        setMessage('Code sent!');
-        setStage('verify');
-        setPhone(validation.formatted || phone);
-      } else {
-        setMessage(data.error || 'Failed to send code');
-      }
-    } catch (error) {
-      setMessage('Failed to send code');
-    }
-  }
-
-  async function verify() {
-    setMessage('Verifying...');
-    
-    try {
-      const response = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, code })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.ok) {
-        localStorage.setItem('sess_uid', phone);
-        
-        // Save name and email if signing up
-        if (mode === 'signup') {
-          localStorage.setItem('profile_firstName', firstName);
-          localStorage.setItem('profile_lastName', lastName);
-          localStorage.setItem('profile_email', email);
-        }
-        
-        setMessage('Logged in');
-        setTimeout(() => router.push('/watch'), 1000);
-      } else {
-        setMessage(data.error || 'Invalid code');
-      }
-    } catch (error) {
-      console.error('❌ Network error:', error);
-      setMessage('Failed to verify code');
-    }
-  }
+function LoginContent() {
+  const callbackUrl = '/watch'; // Default callback
+  const error = null; // Can read from URL params later if needed
 
   return (
     <div style={{ position:'relative', minHeight:'100vh', overflow:'hidden', background:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
       <main style={{ position:'relative', zIndex:1, display:'grid', placeItems:'center', minHeight:'100vh', padding:24 }}>
         <div style={{ width:360, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:20, boxShadow:'0 6px 30px rgba(0,0,0,0.35)' }}>
           <h1 style={{ textAlign:'center', color:'var(--primary)', marginBottom:12 }}>The Consumer</h1>
+          <p style={{ textAlign:'center', color:'var(--muted)', marginBottom:24 }}>
+            Sign in to earn money watching ads
+          </p>
           
-          {stage === 'request' && (
-            <>
-              <p style={{ textAlign:'center', color:'var(--muted)', marginBottom:16 }}>United States only</p>
-              <div style={{ display:'grid', gap: 8 }}>
-                {mode === 'signup' && (
-                  <>
-                    <input placeholder="First Name *" value={firstName} onChange={e=>setFirstName(e.target.value)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }} />
-                    <input placeholder="Last Name *" value={lastName} onChange={e=>setLastName(e.target.value)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }} />
-                    <input placeholder="Email *" type="email" value={email} onChange={e=>setEmail(e.target.value)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }} />
-                  </>
-                )}
-                <input placeholder="(555) 123-4567" value={phone} onChange={e=>setPhone(e.target.value)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }} />
-                <button onClick={request} style={{ background:'var(--primary)', color:'#fff', padding:'10px 12px', borderRadius:8, fontWeight:700 }}>Send code</button>
-              </div>
-              <p style={{ marginTop:12, textAlign:'center' }}>
-                {mode === 'login' ? (
-                  <>Don't have an account? <a href="#" onClick={(e)=>{e.preventDefault(); setMode('signup')}} style={{color:'var(--primary)', fontWeight:700}}>Sign Up</a></>
-                ) : (
-                  <>Already have an account? <a href="#" onClick={(e)=>{e.preventDefault(); setMode('login')}} style={{color:'var(--primary)', fontWeight:700}}>Log In</a></>
-                )}
-              </p>
-              <p style={{ marginTop:8, textAlign:'center' }}>{message}</p>
-            </>
+          {error && (
+            <div style={{ 
+              padding: '12px', 
+              borderRadius: 8, 
+              background: '#fee', 
+              color: '#c33', 
+              marginBottom: 16,
+              fontSize: 14 
+            }}>
+              {error === 'CredentialsSignin' && 'Sign in failed. Please try again.'}
+              {error === 'OAuthSignin' && 'OAuth sign in failed. Please try again.'}
+              {error === 'OAuthCallback' && 'OAuth callback error. Please try again.'}
+              {error === 'OAuthCreateAccount' && 'Could not create account. Please try again.'}
+              {error === 'EmailCreateAccount' && 'Could not create account. Please try again.'}
+              {error === 'Callback' && 'Callback error. Please try again.'}
+              {error === 'AccessDenied' && 'Access denied. Please contact support.'}
+              {!['CredentialsSignin', 'OAuthSignin', 'OAuthCallback', 'OAuthCreateAccount', 'EmailCreateAccount', 'Callback', 'AccessDenied'].includes(error) && 'An error occurred. Please try again.'}
+            </div>
           )}
-          {stage === 'verify' && (
-            <>
-              <p style={{ textAlign:'center', color:'var(--muted)', marginBottom:16 }}>United States only</p>
-              <div style={{ display:'grid', gap: 8 }}>
-                <input placeholder="(555) 123-4567" value={phone} readOnly style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#f5f5f5', color:'var(--foreground)' }} />
-                <input placeholder="code" value={code} onChange={e=>setCode(e.target.value)} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'#ffffff', color:'var(--foreground)' }} />
-                <button onClick={verify} style={{ background:'var(--primary)', color:'#fff', padding:'10px 12px', borderRadius:8, fontWeight:700 }}>Verify</button>
-              </div>
-              <p style={{ marginTop:12, textAlign:'center' }}>{message}</p>
-            </>
-          )}
+          
+          <div style={{ display:'grid', gap: 12 }}>
+            <button 
+              onClick={() => signIn('google', { callbackUrl })}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: 12,
+                background:'#fff', 
+                color:'#333', 
+                padding:'12px 16px', 
+                borderRadius:8, 
+                border: '1px solid #ddd',
+                fontWeight:600,
+                cursor: 'pointer',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20">
+                <path fill="#4285F4" d="M19.6 10.23c0-.82-.07-1.54-.2-2.26H10v4.29h5.39c-.23 1.24-.9 2.29-1.92 3.01v2.43h3.11c1.82-1.68 2.87-4.15 2.87-7.47z"/>
+                <path fill="#34A853" d="M10 20c2.6 0 4.78-.86 6.37-2.3l-3.11-2.43c-.86.58-1.96.92-3.26.92-2.51 0-4.63-1.7-5.39-3.99H1.26v2.51C2.81 17.45 6.2 20 10 20z"/>
+                <path fill="#FBBC04" d="M4.61 12.2c-.19-.58-.3-1.2-.3-1.83 0-.63.11-1.25.3-1.83V6.03H1.26C.64 7.5.24 9.18.24 11c0 1.82.4 3.5 1.02 4.97l3.35-2.77z"/>
+                <path fill="#EA4335" d="M10 3.95c1.41 0 2.68.48 3.68 1.43l2.76-2.76C15.78.99 13.6.2 10 .2 6.2.2 2.81 2.75 1.26 6.03l3.35 2.51C5.37 6.65 7.49 4.95 10 4.95z"/>
+              </svg>
+              Continue with Google
+            </button>
+            
+            <button 
+              onClick={() => signIn('apple', { callbackUrl })}
+              disabled
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: 12,
+                background:'#000', 
+                color:'#fff', 
+                padding:'12px 16px', 
+                borderRadius:8, 
+                border: 'none',
+                fontWeight:600,
+                cursor: 'not-allowed',
+                opacity: 0.5
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M15.2 3.9c.8 1 1.3 2.3 1.1 3.6-1.1.2-2.5.1-3.4-.9-.9-.8-1.4-2-.1-3.1.1-.1 1-.4 2.4.4zm3.1 6.3c-.1 2.8-.7 5.4-2.6 6.8-1.8 1.4-3.1.9-4.7.7-1.6-.2-2.7-.2-4.4 0-1.6.2-2.9.6-4.7-.7C-.1 16-.4 13.3.4 10.3c.9-3.1 3.2-5.1 5.7-5 1.5 0 2.7.5 4 1 1.5.6 2.3.5 3.2-.2.7-.6 1.8-.8 2.8-.6 1 .1 1.8.4 2.6.4.9-.2 2.4-.8 3.8-.6.3 0 .9.3 1.3.8-.3.3-1 .9-1.6 1.4.7.5 1.5 1.2 1.9 1.8 1.6 2.1 1.3 5.1 1.2 8.7z"/>
+              </svg>
+              Continue with Apple
+              <span style={{ fontSize: 12, marginLeft: 8 }}>(Coming Soon)</span>
+            </button>
+          </div>
+          
+          <p style={{ marginTop: 24, fontSize: 12, color:'var(--muted)', textAlign:'center' }}>
+            By signing in, you agree to our Terms of Service and Privacy Policy
+          </p>
         </div>
       </main>
     </div>
   );
 }
 
-
+export default function Login() {
+  return (
+    <Suspense fallback={<div style={{ display:'grid', placeItems:'center', minHeight:'100vh' }}>Loading...</div>}>
+      <LoginContent />
+    </Suspense>
+  );
+}

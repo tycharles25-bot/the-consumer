@@ -3,11 +3,6 @@ export const env = {
   themePrimary: process.env.THEME_PRIMARY || '#ff6a00',
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
-  twilio: {
-    sid: process.env.TWILIO_ACCOUNT_SID || '',
-    token: process.env.TWILIO_AUTH_TOKEN || '',
-    verifySid: process.env.TWILIO_VERIFY_SID || ''
-  },
   postmarkToken: process.env.POSTMARK_SERVER_TOKEN || '',
   emailFrom: process.env.EMAIL_FROM || 'The Consumer <no-reply@theconsumer.com>',
   aws: {

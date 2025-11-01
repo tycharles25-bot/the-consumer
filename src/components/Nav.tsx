@@ -1,20 +1,19 @@
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { useEffect } from 'react';
 
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session, status } = useSession();
   
   useEffect(() => {
     // Check if user is logged in, redirect to login if not (except for login page itself)
-    if (pathname !== '/login' && typeof window !== 'undefined') {
-      const sessUid = localStorage.getItem('sess_uid');
-      if (!sessUid) {
-        router.push('/login');
-      }
+    if (pathname !== '/login' && status === 'unauthenticated') {
+      router.push('/login');
     }
-  }, [pathname, router]);
+  }, [pathname, router, status]);
   
   if (pathname === '/login') return null; // hide nav on login
   return (
@@ -38,7 +37,28 @@ export default function Nav() {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <a href="/watch" style={{ color:'#ff6a00', fontWeight:600 }}>The Consumer</a>
           <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+            {session?.user && (
+              <span style={{ fontSize: 14, color: 'var(--muted)' }}>
+                {session.user.name || session.user.email}
+              </span>
+            )}
             <a href="/profile" style={{ color:'var(--foreground)' }}>Profile</a>
+            {session && (
+              <button 
+                onClick={() => signOut({ callbackUrl: '/login' })}
+                style={{ 
+                  background: 'transparent', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: 6, 
+                  padding: '6px 12px', 
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  color: 'var(--foreground)'
+                }}
+              >
+                Sign Out
+              </button>
+            )}
           </div>
         </div>
         {/* Primary options bar */}
@@ -52,5 +72,3 @@ export default function Nav() {
     </>
   );
 }
-
-
