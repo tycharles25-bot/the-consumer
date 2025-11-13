@@ -16,14 +16,35 @@
 
 4. **Add Environment Variables** in Render dashboard:
    ```
-   STRIPE_SECRET_KEY=sk_test_YOUR_KEY_HERE
-   STRIPE_WEBHOOK_SECRET=whsec_YOUR_KEY_HERE
-   OPENAI_API_KEY=sk-proj-YOUR_KEY_HERE
+   DATABASE_URL=postgres://USER:PASSWORD@HOST:PORT/DB_NAME
+   STRIPE_SECRET_KEY=sk_live_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   OPENAI_API_KEY=sk-proj-...
    NEXT_PUBLIC_APP_NAME=The Consumer
    THEME_PRIMARY=#ff6a00
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   NEXTAUTH_SECRET=...
+   NEXTAUTH_URL=https://consumer.net
+   META_VERIFY_TOKEN=choose-a-secret-token
+   META_APP_ID=...
+  META_APP_SECRET=...
+   META_ACCESS_TOKEN=...
    ```
 
 5. **Deploy**: Click "Create Web Service"
+
+## Database Setup
+- Provision a PostgreSQL instance (Render, Supabase, Neon, etc.)
+- Copy the connection string into `DATABASE_URL`
+- Run migrations locally: `npx prisma migrate deploy`
+- Optional: run the same on Render using a deploy hook or shell
+
+## Meta (Instagram/Facebook) Webhook
+- Set Meta app mode to **Live**
+- Callback URL: `https://consumer.net/api/meta/webhook`
+- Verify token: must match `META_VERIFY_TOKEN`
+- Webhook events will be persisted in the `WebhookEvent` table
 
 ## After Deployment
 
